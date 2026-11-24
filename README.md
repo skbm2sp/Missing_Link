@@ -1,14 +1,6 @@
-# Missing Link: Specimen Intake (SW 2.3)
+# Missing Link: Specimen Intake
 
 A pixel-art browser game for Grade 9 Science, in the style of Papers, Please. Field paleontologists come to your intake window with specimen files. Date each fossil, identify it, stamp it and hand it back. The shift report at the end is the screenshot students submit. Works on laptops and iPads (landscape).
-
-## Put it online with GitHub Pages (free)
-1. Sign in at github.com and click **New repository**. Name it `missing-link`, set it to **Public**, and create it.
-2. Click **uploading an existing file**, drag in `index.html` and `README.md`, and click **Commit changes**.
-3. Go to **Settings > Pages**. Under *Branch*, choose `main` and `/ (root)`, then **Save**.
-4. After about a minute the link appears at the top of that page: `https://YOUR-USERNAME.github.io/missing-link/`.
-
-You can also zip `index.html` and upload it to itch.io as an HTML game.
 
 ## Starting a game
 1. **Title page:** choose SINGLE PLAYER or MULTIPLAYER · CO-OP (two inspectors).
