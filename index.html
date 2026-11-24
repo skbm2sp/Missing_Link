@@ -1,0 +1,877 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Missing Link</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=VT323&family=Silkscreen:wght@400;700&display=swap" rel="stylesheet">
+<style>
+/* VOICE: night shift at a museum intake window, after Papers, Please.
+   IDEA: a dark office behind the counter, a silhouetted reporter, a teal desk, a shelf of instruments below.
+   PICTURE: pixel scenery drawn on small canvases and scaled up; papers in cream, lilac and pink.
+   COLOUR and TYPE: dark browns and greys, muted teal desk, red and green stamps. VT323 for text, Silkscreen for labels.
+   LAYOUT: fixed 1280x960 stage (4:3, fits iPads exactly) scaled to the screen. */
+:root{--t:"VT323","Courier New",monospace;--l:"Silkscreen","Courier New",monospace;--line:#1b1714;--ink:#2b2622;--muted:#6d6456;--red:#b83a2e;--grn:#4f7a24;--amber:#e0b04a}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:#0d0b0a;overflow:hidden;font:20px/1.1 var(--t);color:var(--ink);-webkit-text-size-adjust:100%;-webkit-touch-callout:none;overscroll-behavior:none}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer}
+canvas{image-rendering:pixelated;image-rendering:crisp-edges;display:block}
+:focus-visible{outline:3px solid var(--amber);outline-offset:2px}
+.hide{display:none!important}
+#wrap{position:fixed;inset:0;overflow:hidden}
+#stage{position:absolute;left:0;top:0;transform-origin:0 0;width:1280px;height:960px;overflow:hidden;user-select:none;-webkit-user-select:none;touch-action:none;background:#1a1613}
+.layer{position:absolute}
+#desk{left:0;top:330px;width:1280px;height:530px;background-color:#6f9284;background-size:8px 8px}
+#world{position:absolute;inset:0;pointer-events:none}#world>*{pointer-events:auto}
+#sil{position:absolute;left:540px;top:12px;width:200px;height:240px;transition:transform .6s steps(8)}
+#sil.out{transform:translateX(-760px)}#sil.gone{transform:translateX(760px)}
+#bubbles{position:absolute;left:0;top:0;width:1280px;height:250px;pointer-events:none}
+.bub{position:absolute;max-width:300px;background:#efe9d8;border:3px solid var(--line);padding:5px 10px;font:22px/1.05 var(--t);color:var(--ink);box-shadow:4px 4px 0 rgba(0,0,0,.45)}
+#handZone{position:absolute;left:0;top:250px;width:1280px;height:80px;pointer-events:none;z-index:2}
+#handZone.hot{outline:5px dashed var(--amber);outline-offset:-8px;background:rgba(224,176,74,.18)}
+#handZone.hot:after{content:"HAND BACK";position:absolute;left:0;right:0;top:28px;text-align:center;font:12px var(--l);color:#1d2a22}
+/* shelf */
+.shelfitem{position:absolute}
+#caseplate{left:18px;top:868px;width:176px;height:84px;background:#e9e1c3;border:4px solid var(--line);box-shadow:inset 0 0 0 3px #cfc49f;padding:4px 10px;line-height:1}
+#caseplate b{display:block;font:700 26px/1 var(--l);color:#2b2622}
+#caseplate span{font:18px/1 var(--t);color:var(--muted);white-space:nowrap}
+#pauseBtn{left:412px;top:880px;width:124px;height:64px;padding:0;font-size:12px}
+.scr.pause{background:rgba(13,11,10,.8)}
+.pmenu{width:540px;background:#e5dcc4;color:var(--ink);border:4px solid var(--line);box-shadow:10px 10px 0 #000;padding:26px 32px 14px;text-align:center}
+.pmenu h1{font:700 48px/1 var(--l);margin:0 0 6px}.psub{font:22px var(--t);color:var(--muted);margin-bottom:22px}
+.pmenu .btn{display:block;width:100%;height:60px;margin:0 0 14px;font-size:15px}.pmenu p{font:24px/1.1 var(--t);margin:0 0 18px}
+.btn.red{background:#c9705d;box-shadow:inset 0 -6px 0 #8f3a2e;color:#1e0e0a}
+#speaker{left:548px;top:878px;width:176px;height:72px;border:0;padding:0;background:none}
+#speaker canvas{width:176px;height:72px}
+#speaker em{position:absolute;left:0;right:0;bottom:-2px;font:8px var(--l);font-style:normal;color:#d8c9a8;text-align:center}
+#idcard{left:1052px;top:868px;width:216px;height:86px;background:#ece7da;border:4px solid var(--line);box-shadow:inset 0 0 0 3px #d2cbb8;padding:4px 8px;overflow:hidden}
+#idcard .ih{font:8px var(--l);color:#fff;background:#3b4a5c;margin:-4px -8px 4px;padding:3px 8px;white-space:nowrap;overflow:hidden}
+#idcard .pr{display:flex;align-items:center;gap:6px;height:30px;margin-bottom:3px}
+#idcard .pr canvas{width:25px;height:30px;border:2px solid var(--line);background:#b9b2a0;flex:none}
+#idcard .pr.big{height:50px;margin:0}#idcard .pr.big canvas{width:38px;height:46px}#idcard .pr.big .nm{line-height:1}#idcard .pr.big .sc{font-size:15px}
+#idcard .pr .nm{font-size:17px}
+#idcard .nm{font:19px/1 var(--t);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+#idcard .sc{font:16px/1 var(--t);color:var(--muted)}
+#nomanual{left:752px;top:878px;width:284px;height:70px;background:#e9e1c3;border:4px solid var(--line);padding:8px 10px;font:20px/1 var(--t);color:var(--ink);transform:rotate(-2deg);box-shadow:4px 4px 0 rgba(0,0,0,.35)}
+#nomanual b{display:block;font:700 11px var(--l);color:var(--red);margin-bottom:4px}
+/* draggable objects */
+.obj{position:absolute;touch-action:none;cursor:grab}
+.obj.dragging{cursor:grabbing;filter:drop-shadow(8px 10px 0 rgba(0,0,0,.35))}
+.fly{transition:left .3s steps(7),top .3s steps(7)}
+.slide{transition:left .8s steps(12),top .8s steps(12),opacity .8s steps(12)}
+/* folder */
+.folder{width:400px;height:520px;perspective:1800px}
+.fback{position:absolute;inset:0;background:#a8874a;border:4px solid var(--line);box-shadow:6px 6px 0 rgba(0,0,0,.35),inset 0 0 0 6px #b8975a}
+.ftab{position:absolute;left:260px;top:-22px;width:100px;height:26px;background:#c4a466;border:4px solid var(--line);border-bottom:0}
+.fcover{position:absolute;inset:0;transform-origin:0 50%;transform-style:preserve-3d;transition:transform .4s steps(6)}
+.folder.open .fcover{transform:rotateY(-179deg)}
+.face{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden;border:4px solid var(--line)}
+.front{background:#d2bf74;box-shadow:inset 0 -12px 0 #bba95f,inset 0 0 0 6px #dccb84;padding:36px 30px}
+.inside{transform:rotateY(180deg);background:#c7b46b;box-shadow:inset 0 0 0 6px #b8a55c;padding:30px 28px;cursor:pointer}
+.casetag{display:inline-block;font:700 34px/1 var(--l);color:var(--ink);border:4px solid var(--ink);padding:10px 16px;background:#e9dfb6}
+.flabel{position:absolute;left:30px;right:30px;bottom:30px;font:24px/1.05 var(--t);color:#4a3e15}
+.flabel span{display:block;font:10px var(--l);color:#6a5a25;margin-top:6px}
+.inside p{font:22px/1.05 var(--t);color:#4a3e15;margin:0}
+.closer{position:absolute;left:28px;right:28px;bottom:30px;border:4px dashed #6a5a25;padding:14px;text-align:center;font:11px/1.6 var(--l);color:#4a3e15}
+/* papers */
+.paper{width:380px;border:3px solid var(--line);box-shadow:5px 5px 0 rgba(0,0,0,.35);font:18px/1.02 var(--t);color:var(--ink);padding:5px}
+.paper .in{border:2px solid rgba(0,0,0,.28);padding:7px 9px 9px;position:relative}
+.paper .hd{display:flex;justify-content:space-between;align-items:baseline;border-bottom:2px solid rgba(0,0,0,.35);padding-bottom:4px;margin-bottom:6px}
+.paper .hd b{font:700 13px var(--l)}.paper .hd span{font:18px var(--t);color:var(--muted)}
+.paper dl{display:grid;grid-template-columns:auto 1fr;gap:0 8px;margin:0}
+.paper dt{color:var(--muted)}.paper dd{margin:0}
+.paper h5{margin:6px 0 1px;font:9px var(--l);color:var(--muted)}
+.paper ul{margin:0;padding-left:14px}.paper li{margin:0 0 1px}
+.paper p{margin:0}
+#lab{background:#e7dec6}#field{background:#d9d2e4}#idf{background:#ecd3cc}
+.pct{font:44px/1 var(--t);color:var(--red)}
+.row{display:flex;align-items:center;gap:8px;margin-top:5px}
+.row label,.lbl{font:9px var(--l);color:var(--muted)}
+.paper input{height:30px;border:0;border-bottom:2px solid var(--line);background:rgba(255,255,255,.45);font:24px/1 var(--t);padding:0 5px;border-radius:0;min-width:0}
+.ptop{display:grid;grid-template-columns:84px 1fr;gap:9px;align-items:start}
+.idphoto{width:84px;height:100px;border:3px solid var(--line);background:#b9b2a0;overflow:hidden}
+.idphoto canvas{width:78px;height:94px}
+.boxes{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:10px}
+.sbox{position:relative;height:96px;border:3px dashed #8a6a62;display:grid;place-items:center}
+.sbox>em{position:absolute;left:5px;top:3px;font:8px var(--l);font-style:normal;color:#7a5e57}
+.ink{font:24px/.95 var(--t);text-transform:uppercase;border:4px solid currentColor;padding:4px 6px;text-align:center;opacity:.85;max-width:150px;transform:rotate(var(--r))}
+.ink.P{color:var(--red)}.ink.T{color:var(--grn)}
+.seal{position:absolute;right:8px;bottom:6px;font:9px var(--l);color:#7a5e57}
+.gram{display:flex;flex-wrap:wrap;gap:0 18px;font:21px/1.1 var(--t);margin:2px 0 4px}.gram span{white-space:nowrap}.gram b{font:28px/1 var(--t);color:var(--red)}
+.smudge{color:#8a7f6a;font-style:italic}.rd{display:inline-block;width:52%;height:13px;background:#2b2622;vertical-align:middle}
+.nophoto{width:78px;height:94px;display:grid;place-items:center;text-align:center;font:9px/1.6 var(--l);color:#5a5246;background:repeating-linear-gradient(45deg,#b9b2a0 0 6px,#ada592 6px 12px)}
+/* pixel dropdown */
+.psel{display:flex;align-items:center;justify-content:space-between;gap:6px;width:100%;height:32px;padding:0 6px;border:3px solid var(--line);background:#d8d0b8;box-shadow:inset 0 -4px 0 #a99f84;font:21px/1 var(--t);text-align:left;cursor:pointer;white-space:nowrap;overflow:hidden}
+.psel i{font-style:normal;font-size:14px;flex:none}
+.psel.empty span{color:var(--muted)}
+.plist{position:absolute;z-index:95000;background:#e3dcc6;border:4px solid var(--line);box-shadow:6px 6px 0 rgba(0,0,0,.4);max-height:380px;overflow:auto;padding:3px;touch-action:pan-y}
+.plist button{display:block;width:100%;text-align:left;border:0;background:transparent;padding:4px 8px;font:21px/1.05 var(--t);min-height:32px}
+.plist button:hover,.plist button.on{background:#3b4a32;color:#e9eed6}
+.plist .grp{font:8px var(--l);color:var(--muted);padding:6px 8px 2px}
+/* manual (no page animation) */
+.book{width:300px;height:450px}
+.book.open{width:600px}
+.bcase{position:absolute;inset:-7px;background:#6e2520;border:4px solid var(--line);box-shadow:6px 6px 0 rgba(0,0,0,.4)}
+.pg{position:absolute;top:0;width:300px;height:450px;background:#e9e1c9;border:3px solid var(--line);padding:12px 14px 28px;overflow:hidden;font:19px/1.02 var(--t)}
+.pgL{left:0}.pgR{left:300px}
+.pgW{left:0;width:600px}
+.pg h3{margin:0 0 6px;font:700 12px var(--l);color:#2f3a2a}
+.pg h4{margin:7px 0 1px;font:9px var(--l);color:#7a2a20}
+.pg p,.pg li{margin:2px 0}.pg ol{margin:0;padding-left:20px;font-size:18px;line-height:1}.pg ol li{margin:0 0 5px}
+.pg table{border-collapse:collapse;width:100%;font:18px/1 var(--t)}
+.pg td,.pg th{border:2px solid #b5a988;padding:1px 4px;text-align:left;vertical-align:top}.pg th{background:#d6caa8;font:8px var(--l)}
+.pg .nw td{white-space:nowrap}
+.pg .ts tr.era td{background:#e0d4b2;font:700 8px/16px var(--l);color:#7a2a20}
+.pg .removed{font:700 11px var(--l);color:var(--red);border:3px solid var(--red);padding:6px;text-align:center;margin:10px 0 12px;transform:rotate(-3deg)}
+.gsel{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+.gsel .lbl{flex:none}
+#gtable{height:330px;overflow:auto;touch-action:pan-y;font-size:16px;position:relative}
+#gtable table{table-layout:fixed;font-size:16px}#gtable th:first-child{width:140px}
+#gtable td:first-child{font-weight:700;overflow-wrap:anywhere}
+#gtable.more:after{content:"▼ SCROLL FOR MORE";position:sticky;bottom:0;display:block;text-align:center;background:#d6caa8;font:8px/18px var(--l);color:#2f3a2a}
+.gnote{font:16px var(--t);color:var(--muted);margin-top:4px}
+.names{columns:3;column-gap:14px;font-size:16px;line-height:1.05}.names div{break-inside:avoid;border-bottom:2px dotted #c8bc9b;padding:1px 0}
+.pno{position:absolute;bottom:6px;font:8px var(--l);color:var(--muted)}
+.pgL .pno,.pgW .pno{left:14px}.pgR .pno{right:14px}
+.btabs{position:absolute;left:600px;top:14px;display:flex;flex-direction:column;gap:5px}
+.btab{width:100px;height:40px;border:3px solid var(--line);border-left:0;padding:2px 6px 2px 10px;text-align:left;font:8px/1.3 var(--l);color:#241d10;box-shadow:4px 4px 0 rgba(0,0,0,.3)}
+.btab.on{transform:translateX(6px)}
+.book.closed .bcase,.book.closed .pg,.book.closed .btabs{display:none}
+.book.open .cover{display:none}
+.cover{position:absolute;inset:0;background:#a8362c;border:4px solid var(--line);box-shadow:6px 6px 0 rgba(0,0,0,.4),inset 14px 0 0 #7d241c;padding:16px 16px 0 30px;color:#f1d9cf}
+.cover .lab{display:block;background:#f3e3df;color:#3a1a14;border:3px solid var(--line);font:700 15px/1 var(--l);padding:7px;text-align:center;margin-bottom:22px}
+.cover canvas{width:96px;height:96px;margin:0 auto 18px}
+.cover .bn{font:12px/1.7 var(--l);text-align:center}
+/* calculator */
+.calc{width:170px;height:236px;background:#2c2d2c;border:4px solid var(--line);box-shadow:6px 6px 0 rgba(0,0,0,.4),inset 0 5px 0 #3e403e,inset 0 -7px 0 #1f201f;padding:10px}
+.cdisp{height:40px;background:#9fc4d6;border:3px solid var(--line);box-shadow:inset 3px 3px 0 #7ea3b5;font:32px/32px var(--t);color:#1d2b33;text-align:right;padding:0 6px;overflow:hidden;white-space:nowrap;margin-bottom:8px}
+.ckeys{display:grid;grid-template-columns:repeat(4,1fr);gap:5px}
+.ckeys button{height:30px;border:3px solid var(--line);background:#47484a;color:#e3e5d7;font:24px/1 var(--t);box-shadow:inset 0 -4px 0 #2f3031;padding:0}
+.ckeys button.op{background:#b58a3a;color:#24180a;box-shadow:inset 0 -4px 0 #8a6520}.ckeys button.cl{background:#8f3a2e;box-shadow:inset 0 -4px 0 #642419}
+.ckeys button:active{box-shadow:none;transform:translateY(2px)}
+/* stamp bar */
+#bar{position:absolute;top:334px;width:754px;height:176px;z-index:30000;transition:left .35s steps(7)}
+#bartab{position:absolute;left:0;top:30px;width:38px;height:116px;background:#3b3128;border:4px solid var(--line);border-right:0;color:#d9c9a3;font:9px/1.1 var(--l);padding:0;writing-mode:vertical-rl;text-orientation:upright;letter-spacing:-1px}
+#barbase{position:absolute;left:34px;top:0;width:720px;height:176px}
+.mach{position:absolute;top:0;width:160px;height:140px}
+.mach .knob{position:absolute;left:52px;top:0;width:56px;height:64px;transition:transform .08s steps(2)}
+.mach .body{position:absolute;left:0;top:44px;width:160px;height:92px;transition:transform .08s steps(2)}
+.mach.press .knob{transform:translateY(16px)}.mach.press .body{transform:translateY(8px)}
+.mach .val{position:absolute;left:22px;top:100px;width:116px;height:28px;border:0;padding:0 4px;background:transparent;font:9px/1.05 var(--l);display:flex;align-items:center;justify-content:center;gap:4px;cursor:pointer;z-index:2}
+.mach[data-k=P] .val{color:#f09184}.mach[data-k=T] .val{color:#bfe384}
+.mach .hit{position:absolute;left:0;top:0;width:160px;height:96px;border:0;background:transparent;padding:0;z-index:1}
+.aim{position:absolute;top:176px;width:0;height:0;border-left:12px solid transparent;border-right:12px solid transparent;border-top:14px solid #e0b04a}
+#barlabel{position:absolute;left:0;right:0;top:150px;text-align:center;font:9px var(--l);color:#a99c86;pointer-events:none}
+/* envelope */
+/* envelope: back, letter, front pocket and flap are separate layers, so the letter slides out
+   in front of the opened flap and stays tucked behind the pocket */
+.env{width:300px;height:190px;cursor:pointer}
+.env>canvas{position:absolute;left:0;width:300px}
+.env .eback{top:0;height:190px;z-index:1;filter:drop-shadow(6px 6px 0 rgba(0,0,0,.4))}
+.env .letter{position:absolute;left:24px;top:16px;width:252px;height:164px;background:#e9e1c9;border:3px solid var(--line);z-index:2;padding:10px 14px;transition:transform .5s .45s steps(8)}
+.env .letter b{display:block;font:700 11px var(--l);color:#2f3a2a;margin-bottom:8px}
+.env .letter i{display:block;height:4px;background:#b9ae90;margin:7px 0}
+.env .efront{top:0;height:190px;z-index:3;pointer-events:none}
+.env .flap{top:0;height:120px;z-index:4;transform-origin:50% 0;transition:transform .4s steps(6),z-index 0s .4s;pointer-events:none}
+.env .wax{position:absolute;left:130px;top:98px;width:40px;height:40px;background:var(--red);border:4px solid var(--line);color:#f3c9a8;font:12px/32px var(--l);text-align:center;z-index:5}
+.env .et{position:absolute;left:0;right:0;bottom:16px;text-align:center;font:10px/1.6 var(--l);color:#3d2a12;z-index:5;pointer-events:none}
+.env.open .flap{transform:scaleY(-1);z-index:1}.env.open .wax,.env.open .et{visibility:hidden}
+.env.open .letter{transform:translateY(-66px)}
+/* screens */
+#toast{position:absolute;left:640px;top:806px;transform:translateX(-50%);z-index:80000;background:#efe9d8;color:var(--ink);padding:6px 12px;font:21px/1.05 var(--t);border:3px solid var(--line);box-shadow:4px 4px 0 rgba(0,0,0,.4);max-width:760px;pointer-events:none;white-space:nowrap}
+.scr{position:absolute;inset:0;z-index:90000;background:#0d0b0a;display:grid;place-items:center;color:#cfc8b4}
+.reg{width:600px;background:#e5dcc4;color:var(--ink);border:4px solid var(--line);box-shadow:10px 10px 0 #000;padding:8px}
+.reg .in{border:2px solid rgba(0,0,0,.3);padding:16px 22px}
+.title{font:700 64px/1 var(--l);color:#cfc8b4;text-align:center;margin:0 0 6px;letter-spacing:2px}
+.sub{font:24px var(--t);color:#8d8572;text-align:center;margin:0 0 22px}
+.reg h2{font:700 14px var(--l);margin:0 0 6px}
+.reg label{display:block;font:9px var(--l);color:var(--muted);margin:8px 0 2px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:0 12px}
+.inp{width:100%;height:40px;border:3px solid var(--line);background:#f2ecda;font:26px/1 var(--t);padding:0 8px;border-radius:0}
+.btn{height:46px;padding:0 22px;border:4px solid var(--line);background:#b89a5c;color:#1e170c;font:700 13px var(--l);box-shadow:inset 0 -6px 0 #8a7038}
+.btn:active{box-shadow:none;transform:translateY(3px)}
+.err{color:var(--red);font:22px var(--t);min-height:24px;margin:8px 0 2px}
+.res{width:980px;font:24px/1.1 var(--t)}
+.res h1{font:700 30px var(--l);color:#cfc8b4;margin:0 0 4px;text-align:center}
+.res .meta{color:#8d8572;text-align:center;margin-bottom:16px}
+.res table{width:100%;border-collapse:collapse;margin:0 0 16px}
+.res th,.res td{padding:5px 8px;border-bottom:2px solid #2d2823;text-align:center}
+.res th{font:9px var(--l);color:#8d8572}
+.res td:first-child,.res th:first-child{text-align:left}
+.ok{color:#8fbf5a}.no{color:#e0675a}
+.ledger{width:440px;margin:0 auto 16px;display:grid;grid-template-columns:1fr auto;gap:2px 20px}
+.ledger .tot{border-top:2px solid #4a4238;padding-top:4px;color:#e9dfc2}
+.score{font:700 44px var(--l);color:#e9dfc2;text-align:center;margin:4px 0 12px}
+.vc{text-align:center;color:#8d8572;margin-bottom:16px}.vc b{color:#cfc8b4;letter-spacing:3px}
+.res .who{display:flex;align-items:center;justify-content:space-between;gap:20px;margin-bottom:8px}
+.res .who .ppl{display:flex;gap:14px;align-items:center}
+.res .who canvas,.res .who img.av{width:48px;height:58px;border:3px solid #cfc8b4;background:#b9b2a0}
+.res .sig{text-align:center;font:8px var(--l);color:#8d8572}.res .sig img{display:block;width:240px;height:72px;background:#e9e1c9;border:3px solid #cfc8b4;margin-bottom:3px;image-rendering:pixelated}
+.res td,.res th{padding:3px 8px}
+/* title */
+.ttl{text-align:center}
+.ttl canvas{width:288px;height:192px;margin:0 auto 10px}
+.ttl .kick{font:12px var(--l);color:#8d8572;letter-spacing:2px}
+.ttl .big{font:700 96px/1 var(--l);color:#e9dfc2;letter-spacing:4px;margin:8px 0 4px;text-shadow:6px 6px 0 #3b3128}
+.ttl .bar{width:520px;height:8px;background:#b89a5c;margin:18px auto 34px;box-shadow:4px 4px 0 #3b3128}
+.ttl .btn{display:block;width:460px;height:68px;margin:0 auto 18px;font-size:18px}
+.ttl .foot{font:20px var(--t);color:#6d6456;margin-top:26px}
+.btn.alt{background:#8fb8a5;box-shadow:inset 0 -6px 0 #617b6f}
+/* menu (inspector application) */
+.backb{position:absolute;left:24px;top:22px;height:48px;padding:0 18px;font-size:12px}
+.form{position:absolute;left:150px;top:24px;width:980px;background:#e5dcc4;color:var(--ink);border:4px solid var(--line);box-shadow:10px 10px 0 #000;padding:8px}
+.form>.in{border:2px solid rgba(0,0,0,.3);padding:12px 22px 14px}
+.form h1{font:700 40px/1 var(--l);margin:0;text-align:center}
+.form .fsub{text-align:center;font:20px var(--t);color:var(--muted);margin:2px 0 8px}
+.form label,.form .lab{display:block;font:9px var(--l);color:var(--muted);margin:0 0 3px}
+.prow{display:grid;grid-template-columns:96px 1fr 1fr;gap:0 16px;align-items:end;margin-bottom:10px}
+.prow .who2{grid-column:1/-1;font:9px var(--l);color:#7a2a20;margin-bottom:2px}
+.avb{width:96px;height:118px;border:3px solid var(--line);background:#b9b2a0;padding:3px;position:relative;box-shadow:3px 3px 0 rgba(0,0,0,.3)}
+.avb canvas,.avb img{width:84px;height:100px;display:block;image-rendering:pixelated}
+.avb span{position:absolute;left:0;right:0;bottom:2px;font:7px var(--l);color:#fff;background:rgba(27,23,20,.75);padding:2px 0}
+.cols{display:grid;grid-template-columns:420px 1fr;gap:0 26px;margin-top:6px}
+.fld{margin-bottom:10px}
+.ddesc{height:92px;border:3px solid #b5a988;background:#efe7d0;padding:6px 9px;font:19px/1.05 var(--t);margin-top:6px}
+.ddesc b{display:block;font:700 10px var(--l);margin-bottom:3px}
+.form .chk,.chk{display:flex;align-items:center;gap:10px;font:22px/1 var(--t);color:var(--ink);margin:0;cursor:pointer}
+.chk input{appearance:none;-webkit-appearance:none;width:30px;height:30px;margin:0;border:3px solid var(--line);background:#f2ecda;display:grid;place-items:center;flex:none}
+.chk input:checked:after{content:"";width:14px;height:14px;background:var(--grn);box-shadow:inset 0 -3px 0 #3a5a18}
+.sigbox{position:relative;width:100%;height:190px;border:3px solid var(--line);background:#f2ecda;touch-action:none;cursor:crosshair}
+.sigbox canvas{width:100%;height:100%;image-rendering:pixelated}
+.sigbox .x{position:absolute;left:14px;bottom:30px;font:28px var(--t);color:var(--muted);pointer-events:none}
+.sigbox .ln{position:absolute;left:44px;right:14px;bottom:36px;border-bottom:2px solid var(--muted);pointer-events:none}
+.sigbar{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:5px;font:18px var(--t);color:var(--muted)}
+.sbtn{height:34px;padding:0 12px;border:3px solid var(--line);background:#d8d0b8;font:9px var(--l);box-shadow:inset 0 -4px 0 #a99f84}
+.fend{display:flex;justify-content:space-between;align-items:center;margin-top:8px;gap:20px}
+.fend .err{margin:0;flex:1}
+/* photo picker */
+.pick{position:absolute;inset:0;z-index:2;background:rgba(13,11,10,.82);display:grid;place-items:center}
+.pick .pan{color:var(--ink);width:860px;background:#e5dcc4;border:4px solid var(--line);box-shadow:10px 10px 0 #000;padding:16px 20px}
+.pick h2{font:700 18px var(--l);margin:0 0 4px;display:flex;justify-content:space-between;align-items:center}
+.pick h3{font:9px var(--l);color:var(--muted);margin:10px 0 6px}
+.pgrid{display:grid;grid-template-columns:repeat(7,104px);gap:10px}
+.ptile{width:104px;height:124px;border:3px solid var(--line);background:#b9b2a0;padding:4px;position:relative}
+.ptile canvas,.ptile img{width:90px;height:108px;display:block;image-rendering:pixelated}
+.ptile.on{outline:5px solid var(--amber);outline-offset:1px}
+.ptile .del{position:absolute;right:-8px;top:-8px;width:28px;height:28px;border:3px solid var(--line);background:#8f3a2e;color:#fff;font:14px/1 var(--t);padding:0}
+.ptile.add{background:#d8c47e;display:grid;place-items:center;text-align:center;font:8px/1.5 var(--l);color:#3b3128}
+.ptile.add canvas{width:64px;height:48px;margin:0 auto 6px}
+/* tutorial */
+#tut{position:absolute;left:16px;top:12px;width:512px;z-index:84000;background:#efe9d8;border:4px solid var(--line);box-shadow:6px 6px 0 rgba(0,0,0,.5);color:var(--ink)}
+#tut .th{display:flex;align-items:center;gap:8px;background:#3b4a5c;color:#fff;font:9px var(--l);padding:4px 8px}
+#tut .th canvas{width:30px;height:36px;background:#b9b2a0;border:2px solid #1b1714}
+#tut .th em{font-style:normal;margin-left:auto;color:#cfd8e3}
+#tut .tb{padding:8px 12px 6px;font:22px/1.08 var(--t);min-height:74px}
+#tut .tw{color:var(--red);font:21px/1.05 var(--t);margin-top:6px}
+#tut .tf{display:flex;justify-content:flex-end;padding:0 10px 8px}
+#tut .tf .btn{height:38px;font-size:11px;padding:0 16px}
+#tutSkip{position:absolute;right:16px;top:12px;z-index:84000;height:40px;padding:0 14px;font-size:10px}
+#tutRing{position:absolute;z-index:85000;border:4px dashed var(--amber);pointer-events:none;animation:blink 1s steps(2) infinite}
+#tutArrow{position:absolute;z-index:85001;width:0;height:0;border-left:16px solid transparent;border-right:16px solid transparent;border-top:22px solid var(--amber);pointer-events:none;filter:drop-shadow(3px 3px 0 #1b1714);animation:bob .7s steps(2) infinite}
+#tutArrow.up{border-top:0;border-bottom:22px solid var(--amber)}
+@keyframes blink{50%{border-color:#fff3c4}}
+@keyframes bob{50%{translate:0 6px}}
+#rot{position:fixed;inset:0;background:#0d0b0a;color:#cfc8b4;display:none;place-items:center;text-align:center;padding:30px;z-index:99999;font:12px/1.8 var(--l)}
+@media (orientation:portrait) and (max-width:900px){#rot{display:grid}}
+@media(prefers-reduced-motion:reduce){.fcover,.fly,.slide,#sil,#bar,.env .letter,.env .flap{transition:none}}
+</style>
+</head>
+<body>
+<div id="wrap"><div id="stage">
+ <canvas id="office" class="layer" width="320" height="63" style="left:0;top:0;width:1280px;height:252px"></canvas>
+ <canvas id="sil" width="40" height="48" class="out"></canvas>
+ <div id="bubbles"></div>
+ <canvas id="counter" class="layer" width="320" height="20" style="left:0;top:250px;width:1280px;height:80px"></canvas>
+ <div id="handZone"></div>
+ <div class="layer" id="desk"></div>
+ <canvas id="shelf" class="layer" width="320" height="25" style="left:0;top:860px;width:1280px;height:100px"></canvas>
+ <div class="shelfitem" id="caseplate"><b id="pCase">C#-</b><span id="pInfo">CASE -</span><br><span id="pTime">00:00</span></div>
+ <button class="shelfitem" id="speaker" type="button" aria-label="Sound on or off"><canvas width="44" height="18" id="spk"></canvas><em id="spkTxt">SOUND ON</em></button>
+ <button class="shelfitem btn" id="pauseBtn" type="button" aria-label="Pause menu">❚❚ MENU</button>
+ <div class="shelfitem hide" id="nomanual"><b>MANUAL NOT ISSUED</b>Progamer: work from memory.</div>
+ <div class="shelfitem" id="idcard"><div class="ih" id="idHead">INSPECTOR ID</div><div id="idNames"></div></div>
+ <div id="world"></div>
+ <div id="toast" class="hide" role="status"></div>
+ <div id="ovl"></div>
+</div></div>
+<div id="rot">TURN YOUR IPAD SIDEWAYS<br>(LANDSCAPE) TO PLAY</div>
+<script>
+const CASES=[{"id": "01", "name": ["Anomalocaris"], "period": "Cambrian", "type": "Arthropod", "ftype": "Mold", "site": "Burgess Shale, British Columbia, Canada", "mat": "Volcanic ash collected at the fossil level", "size": "Black shale slab, 52 cm specimen", "pres": "A flattened, dark outline pressed into black shale. None of the original body remains; only the hollow imprint of its shape is left in the rock.", "anat": ["Two large spiny grasping appendages at the front of the head", "Long, streamlined body (52 cm) with many swimming flaps along both sides", "Large compound eyes on short stalks; only a small head shield", "A fan of tail blades at the rear end", "Round, circular mouth made of overlapping plates"], "hide": [3, 4], "win": [505, 515, 1]}, {"id": "12", "name": ["Trilobite", "Elrathia", "Elrathia kingii"], "period": "Cambrian", "type": "Arthropod", "ftype": "Cast", "site": "Wheeler Shale, Utah, USA", "mat": "Volcanic ash collected at the fossil level", "size": "Shale nodule, 4 cm specimen", "pres": "A solid three-dimensional replica. The animal left a hollow imprint that later filled with minerals.", "anat": ["Body divided lengthwise into three lobes", "Hard, flexible exoskeleton", "Segmented body with jointed legs", "Compound eyes", "Found in rock from an ancient sea floor"], "hide": [3, 4], "win": [505, 509, 1]}, {"id": "22", "name": ["Hurdia", "Hurdia victoria"], "period": "Cambrian", "type": "Arthropod", "ftype": "Mold", "site": "Burgess Shale (Walcott Quarry), British Columbia, Canada", "mat": "Volcanic ash collected at the fossil level", "size": "Shale slab, 30 cm specimen", "pres": "A dark, flattened imprint in shale. The body dissolved long ago; only its hollow impression remains.", "anat": ["Two spiny grasping appendages at the front of the head", "A huge head shield that sticks far forward like a long hood", "Round, circular mouth made of overlapping plates", "Segmented body with swimming flaps and rows of gills", "Found in rock formed on an ancient sea floor"], "hide": [3, 4], "win": [505, 512, 1]}, {"id": "23", "name": ["Cambroraster", "Cambroraster falcatus"], "period": "Cambrian", "type": "Arthropod", "ftype": "Cast", "site": "Marble Canyon, Kootenay National Park, Canada", "mat": "Volcanic ash collected at the fossil level", "size": "Shale slab, 25 cm specimen", "pres": "A solid copy of the animal. It left a hollow imprint in the mud, and minerals later filled that hollow.", "anat": ["Very wide, horseshoe-shaped head shield covering most of the body", "Grasping appendages with rake-like rows of spines, for sifting the sea floor", "Round, circular mouth made of overlapping plates", "Short body with small swimming flaps", "Found in rock formed on an ancient sea floor"], "hide": [3, 4], "win": [505, 510, 1]}, {"id": "24", "name": ["Mosura", "Mosura fentoni"], "period": "Cambrian", "type": "Arthropod", "ftype": "Mold", "site": "Burgess Shale (Raymond Quarry), British Columbia, Canada", "mat": "Volcanic ash collected at the fossil level", "size": "Shale slab, 4 cm specimen", "pres": "A tiny, flattened imprint in shale. The body itself is gone; only the hollow outline is left.", "anat": ["Small body, only about 4 cm long", "Wide swimming flaps along the sides, like the wings of a moth", "A long rear section of many narrow segments covered in gills", "Small grasping appendages and a round, circular mouth", "Found in rock formed on an ancient sea floor"], "hide": [1, 4], "win": [505, 510, 1]}, {"id": "25", "name": ["Kampecaris", "Kampecaris obanensis"], "period": "Silurian", "type": "Arthropod", "ftype": "Cast", "site": "Isle of Kerrera, near Oban, Scotland, UK", "mat": "Volcanic ash collected at the fossil level", "size": "Sandstone slab, 4 cm specimen", "pres": "A solid copy of the body. The animal left a hollow imprint that later filled with sediment and hardened.", "anat": ["Long, narrow body made of many similar segments", "Many pairs of short jointed legs along the body", "Found with bits of fossil plants in rock formed on land, not in the sea", "No wings; covered by a hard exoskeleton", "Small head with short antennae"], "hide": [3, 4], "win": [420, 426, 1]}, {"id": "07", "name": ["Meganeura"], "period": "Carboniferous", "type": "Arthropod", "ftype": "Mold", "site": "Commentry coal measures, France", "mat": "Volcanic tuff collected at the fossil level", "size": "Grey shale slab, wing 32 cm long", "pres": "A thin imprint of wings and body in shale from an old coal mine. The original body is gone; only its impression remains.", "anat": ["Two pairs of thin wings with a dense net of veins; wingspan about 70 cm", "Body in three parts: head, thorax and abdomen", "Six jointed legs lined with spines", "No backbone; the body was covered by an exoskeleton", "Found among fossil plants of a swamp forest"], "hide": [3, 4], "win": [300, 305, 1]}, {"id": "08", "name": ["Pederpes"], "period": "Carboniferous", "type": "Amphibian", "ftype": "Permineralization", "site": "Ballagan Formation, Scotland, UK", "mat": "Volcanic ash collected at the fossil level", "size": "Nearly complete skeleton, about 1 m", "pres": "Stone-like bones. Minerals from groundwater filled the bone spaces and crystallised.", "anat": ["Four limbs ending in digits (toes)", "Broad, triangular skull; body about 1 m long", "Found in lake-edge rock; no evidence of shelled eggs, so it likely returned to water to breed", "Feet face forward, suited for walking", "Backbone and ribs; no sail and no armor plates"], "hide": [3, 4], "win": [345, 350, 1]}, {"id": "26", "name": ["Hylonomus", "Hylonomus lyelli"], "period": "Carboniferous", "type": "Reptile (not a dinosaur)", "ftype": "Permineralization", "site": "Joggins Fossil Cliffs, Nova Scotia, Canada", "mat": "Volcanic ash collected at the fossil level", "size": "Small skeleton, 20 cm long", "pres": "Small bones turned to stone. Groundwater minerals filled the spaces inside them and crystallised.", "anat": ["Small, lizard-like body about 20 cm long", "Found inside a hollow fossil tree stump, away from open water", "Its group laid shelled (amniotic) eggs on land and had thick, dry skin", "Small, sharp teeth for eating insects and millipedes", "Legs sprawl out to the sides of the body"], "hide": [3, 4], "win": [310, 316, 1]}, {"id": "03", "name": ["Brasilodon"], "period": "Triassic", "type": "Early mammal", "ftype": "Permineralization", "site": "Candelária Sequence, Rio Grande do Sul, Brazil", "mat": "Volcanic ash collected at the fossil level", "size": "Red mudstone block, jaw 3 cm long", "pres": "Tiny jaw bones that feel like stone. Groundwater minerals filled the spaces inside the bone and hardened into crystals.", "anat": ["Lower jaw with different kinds of teeth (front teeth differ from cheek teeth)", "Evidence of two sets of teeth: a baby set replaced once by an adult set", "Whole animal estimated at only about 20 cm long", "Small skull; found beside bones of early dinosaurs", "Found in land (river) deposits, not marine rock"], "hide": [3, 4], "win": [223, 228, 1]}, {"id": "04", "name": ["Shonisaurus"], "period": "Triassic", "type": "Reptile (not a dinosaur)", "ftype": "Permineralization", "site": "Luning Formation, Nevada, USA", "mat": "Volcanic ash collected at the fossil level", "size": "Quarry bone bed, vertebrae up to 30 cm wide", "pres": "Heavy, stone-like bones. Minerals carried by groundwater filled the bone spaces and crystallised.", "anat": ["Enormous streamlined body, about 15 m long", "Limbs shaped like paddles (flippers)", "Limbs stick out to the sides; no open hip socket, so not a dinosaur", "Long snout with teeth and very large eye sockets", "Found in rock formed in a deep ancient sea"], "hide": [3, 4], "win": [225, 232, 1]}, {"id": "18", "name": ["Eudimorphodon"], "period": "Triassic", "type": "Reptile (not a dinosaur)", "ftype": "Permineralization", "site": "Zorzino Limestone, near Bergamo, Italy", "mat": "Volcanic ash collected at the fossil level", "size": "Limestone slab, wingspan 1 m", "pres": "Delicate bones turned to stone as minerals filled them.", "anat": ["Wings made of skin stretched along a very long fourth finger", "Legs not tucked beneath the body like a dinosaur's", "Wingspan about 1 m", "Long tail", "Jaws with many small, pointed teeth"], "hide": [3, 4], "win": [205, 215, 1]}, {"id": "27", "name": ["Eocursor", "Eocursor parvus"], "period": "Triassic", "type": "Ornithischian dinosaur", "ftype": "Permineralization", "site": "Elliot Formation, Free State, South Africa", "mat": "Volcanic ash collected at the fossil level", "size": "Partial skeleton, about 1 m long", "pres": "Heavy, stone-like bones. Groundwater minerals filled the empty spaces inside them and hardened into crystals.", "anat": ["Legs extend beneath the body; open hip socket", "Pubis parallel to the ischium (bird-hipped)", "Small, two-legged runner about 1 m long with long hind legs", "Leaf-shaped teeth for chewing plants", "Large hands with five fingers"], "hide": [3, 4], "win": [202, 210, 1]}, {"id": "05", "name": ["Archaeopteryx"], "period": "Jurassic", "type": "Theropod dinosaur", "ftype": "Mold", "site": "Solnhofen Limestone, Bavaria, Germany", "mat": "Volcanic ash collected at the fossil level", "size": "Limestone counter-slab, 45 cm", "pres": "This is the counter-slab: a hollow imprint of the skeleton and feathers left in the rock. No bone is present on this slab.", "anat": ["Crow-sized skeleton with feather impressions on the arms and along a long bony tail", "Jaws with small sharp teeth", "Pubis angled relative to the ischium (reptile-hipped)", "Three clawed fingers on each hand", "Legs extend beneath the body; walked on its toes"], "hide": [3, 4], "win": [148, 152, 1]}, {"id": "06", "name": ["Brachiosaurus"], "period": "Jurassic", "type": "Sauropod dinosaur", "ftype": "Permineralization", "site": "Morrison Formation, Colorado, USA", "mat": "Volcanic ash collected at the fossil level", "size": "Plaster-jacketed bones, upper arm bone over 2 m", "pres": "Very heavy, stone-like bones. Groundwater minerals filled the empty spaces in the bone and hardened.", "anat": ["Front legs longer than back legs, so the shoulders stood high like a giraffe's", "Very long neck held upward; gigantic body over 20 m long", "Open hip socket; pubis angled relative to the ischium (reptile-hipped)", "Four pillar-like legs beneath the body", "Spoon-shaped teeth for stripping leaves; no beak-like predentary bone"], "hide": [3, 4], "win": [152, 157, 1]}, {"id": "28", "name": ["Brontosaurus"], "period": "Jurassic", "type": "Sauropod dinosaur", "ftype": "Permineralization", "site": "Como Bluff, Wyoming, USA", "mat": "Volcanic ash collected at the fossil level", "size": "Plaster-jacketed bones, thigh bone 1.8 m", "pres": "Heavy, stone-like bones. Groundwater minerals filled the empty spaces inside them and hardened into crystals.", "anat": ["Front legs shorter than back legs; the back was highest at the hips", "Very long neck and a long, whip-like tail; body about 22 m long", "Open hip socket; pubis angled relative to the ischium (reptile-hipped)", "Four pillar-like legs beneath the body", "Narrow, peg-like teeth; no beak-like predentary bone"], "hide": [3, 4], "win": [151, 156, 1]}, {"id": "19", "name": ["Stegosaurus"], "period": "Jurassic", "type": "Ornithischian dinosaur", "ftype": "Permineralization", "site": "Morrison Formation, Wyoming, USA", "mat": "Volcanic ash collected at the fossil level", "size": "Plaster-jacketed skeleton, 9 m", "pres": "Heavy, stone-like bones; minerals filled the bone spaces and crystallised.", "anat": ["Large upright plates along the back and spikes on the tail", "Pubis parallel to the ischium (bird-hipped)", "Beak-like predentary bone on the lower jaw", "Legs extend beneath the body; open hip socket", "Small, leaf-shaped teeth"], "hide": [3, 4], "win": [150, 156, 1]}, {"id": "29", "name": ["Allosaurus", "Allosaurus fragilis"], "period": "Jurassic", "type": "Theropod dinosaur", "ftype": "Permineralization", "site": "Cleveland-Lloyd Quarry, Utah, USA", "mat": "Volcanic ash collected at the fossil level", "size": "Skeleton about 8.5 m long", "pres": "Heavy, stone-like bones. Groundwater minerals filled the empty spaces inside them and hardened into crystals.", "anat": ["Large two-legged meat-eater about 8.5 m long", "Pubis angled relative to the ischium (reptile-hipped)", "Bony crests (small horns) above the eyes; blade-like serrated teeth", "Three large clawed fingers on each strong arm", "Legs extend beneath the body; walked on its toes"], "hide": [3, 4], "win": [148, 155, 1]}, {"id": "30", "name": ["Ichthyosaurus"], "period": "Jurassic", "type": "Reptile (not a dinosaur)", "ftype": "Permineralization", "site": "Lyme Regis, Dorset, England, UK", "mat": "Volcanic ash collected at the fossil level", "size": "Shale slab, skeleton 2 m long", "pres": "Bones turned to stone as groundwater minerals filled their spaces and crystallised.", "anat": ["Dolphin-shaped body about 2 m long, with a tail fin", "Limbs shaped like paddles (flippers)", "Limbs stick out to the sides; no open hip socket, so not a dinosaur", "Long, narrow snout with many cone-shaped teeth", "Found in rock formed in an ancient sea"], "hide": [3, 4], "win": [190, 197, 1]}, {"id": "20", "name": ["Tyrannosaurus rex", "T rex", "T. rex", "Tyrannosaurus"], "period": "Cretaceous", "type": "Theropod dinosaur", "ftype": "Trace fossil", "site": "Frenchman Formation, Saskatchewan, Canada", "mat": "Volcanic ash collected at the fossil level", "size": "Coprolite 44 cm long", "pres": "The specimen is fossilised dung (a coprolite). It records the animal's activity, not its body.", "anat": ["Packed with crushed bone fragments of a young plant-eating dinosaur", "Far too large to come from any animal but a giant", "Its bones nearby show a pubis angled relative to the ischium (reptile-hipped)", "Found beside large serrated teeth", "Nearby bones: a giant two-legged dinosaur with legs beneath its body"], "hide": [3, 4], "win": [67.0, 68.0, 0.1]}, {"id": "31", "name": ["Velociraptor"], "period": "Cretaceous", "type": "Theropod dinosaur", "ftype": "Permineralization", "site": "Djadochta Formation, Gobi Desert, Mongolia", "mat": "Volcanic ash collected at the fossil level", "size": "Skeleton about 2 m long, including the tail", "pres": "Heavy, stone-like bones. Groundwater minerals filled the empty spaces inside them and hardened into crystals.", "anat": ["Small two-legged meat-eater, about the size of a turkey, with sharp serrated teeth", "A large sickle-shaped claw on the second toe of each foot", "Legs extend beneath the body; open hip socket", "Small bumps on the forearm bone where feathers were attached", "Long arms with three clawed fingers"], "hide": [3, 4], "win": [71, 75, 1]}, {"id": "32", "name": ["Edmontosaurus"], "period": "Cretaceous", "type": "Ornithischian dinosaur", "ftype": "Permineralization", "site": "Hell Creek Formation, Montana, USA", "mat": "Volcanic ash collected at the fossil level", "size": "Skeleton about 12 m long", "pres": "Heavy, stone-like bones. Groundwater minerals filled the empty spaces inside them and hardened into crystals.", "anat": ["Wide, flat, duck-like bill at the front of the skull", "Pubis parallel to the ischium (bird-hipped)", "Beak-like predentary bone; hundreds of grinding teeth packed together", "Legs extend beneath the body; open hip socket", "Could walk on two legs or on all four"], "hide": [3, 4], "win": [66.5, 68.0, 0.1]}, {"id": "33", "name": ["Archaeornithura", "Archaeornithura meemannae"], "period": "Cretaceous", "type": "Theropod dinosaur", "ftype": "Mold", "site": "Huajiying Formation, Hebei, China", "mat": "Volcanic ash collected at the fossil level", "size": "Shale slab, bird skeleton 15 cm", "pres": "A hollow imprint of the skeleton and feathers in fine lake shale. No bone remains on this slab.", "anat": ["Small bird skeleton with feather impressions on the wings", "Short tail ending in a small fused bone; no long bony tail", "Long legs and toes suited to wading along lake shores", "Found in fine rock from an ancient lake", "Legs extend beneath the body; walked on its toes"], "hide": [3, 4], "win": [127, 131, 1]}, {"id": "34", "name": ["Eomaia", "Eomaia scansoria"], "period": "Cretaceous", "type": "Placental", "ftype": "Permineralization", "site": "Yixian Formation, Liaoning, China", "mat": "Volcanic ash collected at the fossil level", "size": "Shale slab, skeleton 10 cm long", "pres": "Delicate bones turned to stone as minerals filled them; an outline of fur surrounds the skeleton.", "anat": ["Small, furry mammal about 10 cm long (fur outline around the skeleton)", "Mammal jaw with different kinds of teeth", "Teeth and ankle bones like those of early placental mammals", "Long limbs and curved claws for climbing and grasping", "Found in rock from an ancient lake forest"], "hide": [1, 4], "win": [123, 127, 1]}, {"id": "11", "name": ["Pakicetus"], "period": "Paleogene", "type": "Placental", "ftype": "Permineralization", "site": "Kuldana Formation, Punjab, Pakistan", "mat": "Volcanic ash collected at the fossil level", "size": "Red mudstone, skull 30 cm", "pres": "Bones turned to stone as groundwater minerals filled the bone spaces.", "anat": ["Four-legged mammal weighing about 45 kg", "A thick, dense ear bone found only in whales and their relatives", "Whales carry the developing fetus in the mother's uterus", "Long snout with pointed teeth; eyes set high on the skull", "Found near an ancient shoreline"], "hide": [3, 4], "win": [47.0, 50.0, 0.1]}, {"id": "35", "name": ["Purgatorius"], "period": "Paleogene", "type": "Placental", "ftype": "Permineralization", "site": "Tullock Formation, Montana, USA", "mat": "Volcanic ash collected at the fossil level", "size": "Teeth and ankle bones; animal about 15 cm long", "pres": "Tiny teeth and bones turned to stone as minerals filled their spaces.", "anat": ["Tiny mammal, weighing only about 37 g", "Ankle bones that could rotate, for climbing in trees", "Primates, like humans, carry the fetus in the mother's uterus", "Teeth suited to eating insects and fruits", "Belongs to the lineage of primates"], "hide": [3, 4], "win": [65.0, 65.8, 0.1]}, {"id": "09", "name": ["Obdurodon", "Obdurodon dicksoni"], "period": "Neogene", "type": "Monotreme", "ftype": "Permineralization", "site": "Riversleigh, Queensland, Australia", "mat": "Cave flowstone collected at the fossil level", "size": "Limestone block, skull 12 cm", "pres": "A nearly perfect skull turned to stone as minerals filled the bone spaces.", "anat": ["Flat, robust skull with a broad, spoon-shaped bill", "Skull, bill and teeth match the living platypus family", "Living members of that family lay eggs", "Rooted molar and premolar teeth (a mammal jaw)", "Found in deposits of ancient pools and caves"], "hide": [3, 4], "win": [13.5, 18.2, 0.1]}, {"id": "21", "name": ["Australopithecus", "Lucy", "Australopithecus afarensis"], "period": "Neogene", "type": "Placental", "ftype": "Permineralization", "site": "Hadar, Afar Region, Ethiopia", "mat": "Volcanic ash collected at the fossil level", "size": "Partial skeleton (about 40% complete), 1.1 m tall", "pres": "Bones turned to stone as minerals filled their spaces.", "anat": ["Small primate that walked upright on two legs (pelvis and leg bones)", "Small braincase, about the size of a chimpanzee's", "Primates, like humans, carry the fetus in the mother's uterus", "Teeth suited to fruits and seeds", "Belongs to the human lineage"], "hide": [3, 4], "win": [3.0, 3.4, 0.1]}, {"id": "36", "name": ["Leptobos"], "period": "Neogene", "type": "Placental", "ftype": "Permineralization", "site": "Villafranca d'Asti, Piedmont, Italy", "mat": "Volcanic ash collected at the fossil level", "size": "Skull with horn cores, 50 cm", "pres": "Heavy, stone-like bones. Groundwater minerals filled the empty spaces inside them and hardened into crystals.", "anat": ["Skull with a pair of bony horn cores (cattle-like horns)", "High-crowned grinding teeth for chewing tough grass", "Like other cattle, the young develop in the mother's uterus", "Hooves with two toes on each foot", "Found in deposits of an open grassland"], "hide": [3, 4], "win": [2.7, 3.3, 0.1]}, {"id": "10", "name": ["Diprotodon"], "period": "Quaternary", "type": "Marsupial", "ftype": "Permineralization", "site": "Dry lake bed, South Australia", "mat": "Charcoal fragments found with the bones", "size": "Skeleton in lake mud, skull 70 cm", "pres": "Bones hardened as minerals from groundwater filled their spaces.", "anat": ["Very large body, about the size of a rhinoceros", "Skull and teeth closely match wombats and koalas", "In those living relatives, the young are born undeveloped and grow in the mother's pouch", "Massive skull with two forward-pointing lower incisors", "Stout, heavy limbs"], "hide": [3, 4], "win": ["c14", 7, 8]}, {"id": "37", "name": ["Woolly mammoth", "Mammoth", "Mammuthus primigenius"], "period": "Quaternary", "type": "Placental", "ftype": "Permineralization", "site": "Gravel quarry, Thames Valley, England, UK", "mat": "Charcoal fragments found with the bones", "size": "Partial skeleton, tusk 3 m long", "pres": "Heavy bones and a tusk hardened as minerals from groundwater filled their spaces.", "anat": ["Elephant skeleton with long, strongly curved tusks", "Found with pollen of cold-climate (tundra) grasses and shrubs", "Elephants carry the developing fetus in the mother's uterus", "Ridged, plate-like grinding teeth for chewing grasses", "Skull and teeth closely match the Asian elephant"], "hide": [3, 4], "win": ["c14", 4, 7]}, {"id": "38", "name": ["Homo habilis", "Habilis"], "period": "Quaternary", "type": "Placental", "ftype": "Permineralization", "site": "Olduvai Gorge, Tanzania", "mat": "Volcanic ash collected at the fossil level", "size": "Skull pieces and hand bones", "pres": "Bones turned to stone as minerals filled their spaces.", "anat": ["Found with simple stone tools and cut-marked animal bones", "Braincase larger than Australopithecus but much smaller than ours", "Primates, like humans, carry the fetus in the mother's uterus", "Small body, about 1.2 m tall, with long arms", "Hand bones able to grip tools precisely"], "hide": [3, 4], "win": [1.7, 1.9, 0.1]}, {"id": "39", "name": ["Homo erectus", "Erectus"], "period": "Quaternary", "type": "Placental", "ftype": "Permineralization", "site": "Nariokotome, West Turkana, Kenya", "mat": "Volcanic ash collected at the fossil level", "size": "Nearly complete skeleton, 1.6 m tall", "pres": "Bones turned to stone as minerals filled their spaces.", "anat": ["Tall, slender skeleton with long legs and short arms", "Body proportions similar to modern humans", "Primates, like humans, carry the fetus in the mother's uterus", "Braincase larger than Homo habilis, with thick brow ridges", "Found near the shore of an ancient lake in East Africa"], "hide": [3, 4], "win": [1.4, 1.6, 0.1]}, {"id": "40", "name": ["Homo neanderthalensis", "Neanderthal", "Neandertal"], "period": "Quaternary", "type": "Placental", "ftype": "Permineralization", "site": "Feldhofer Cave, Neander Valley, Germany", "mat": "Charcoal from a hearth in the same layer", "size": "Skull cap and limb bones of an adult", "pres": "Bones hardened as minerals from groundwater filled their spaces.", "anat": ["Human-like skull with a protruding face and a very large nasal cavity", "Thick, short lower arm and leg bones, built for cold climates", "Primates, like humans, carry the fetus in the mother's uterus", "Strong brow ridges above the eyes", "Found with stone tools in a cave"], "hide": [3, 4], "win": ["c14", 7, 8]}, {"id": "41", "name": ["Homo sapiens", "Tabon Man", "Modern human", "Human"], "period": "Quaternary", "type": "Placental", "ftype": "Permineralization", "site": "Tabon Cave, Palawan, Philippines", "mat": "Charcoal from a hearth in the same layer", "size": "Skull cap and jaw fragments", "pres": "Bones hardened as minerals from groundwater filled their spaces.", "anat": ["Human skull with a flat face and a high, rounded braincase", "A chin on the lower jaw", "Primates, like humans, carry the fetus in the mother's uterus", "Slender limb bones with body proportions like ours", "Found with stone flakes and charcoal from a cooking fire"], "hide": [3, 4], "win": ["c14", 3, 8]}];
+</script>
+<script>
+{
+/* ===== SETTINGS (teacher can edit) ===== */
+const CFG={CASE_OPTIONS:[3,5,8,10],DEFAULT_CASES:5,PERFECT_BONUS:25,DUPLICATE_CHANCE:0.0128,SECTIONS:["9-POES A","9-POES B","9-POES C"]};
+/* difficulty: pay per point goes up with the difficulty */
+const DIFFS={normal:{name:"Normal",pay:10,desc:"Full manual: half-life table, time scale, organism guide and name list. Files are complete."},
+ difficult:{name:"Difficult",pay:15,desc:"No half-life table in the manual. Work out the number of half-lives with the calculator."},
+ extreme:{name:"Extreme",pay:20,desc:"Difficult, plus damaged files: amounts in grams instead of %, no photo, missing details and unreadable observations."},
+ progamer:{name:"Progamer",pay:30,desc:"Extreme, and no manual at all. Time scale, organisms and names come from memory."}};
+const DKEYS=Object.keys(DIFFS);
+
+const W=1280,H=960,DESK_Y=330,SHELF_Y=860;
+const FOLDER_HOME=[640,336],FOLDER_FROM=[640,150],ENV_HOME=[490,420];
+const CALC_REST=[226,872],CALC_UP=[230,560],BOOK_REST=[744,872],BOOK_UP=[60,396];
+const BAR_OPEN=526,BAR_CLOSED=1242;
+const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v)),ri=(a,b)=>a+Math.floor(Math.random()*(b-a+1)),pickA=a=>a[Math.floor(Math.random()*a.length)];
+function rng(seed){return function(){seed|=0;seed=seed+0x6D2B79F5|0;let t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+function h32(s,seed){let h=(seed^2166136261)>>>0;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619)>>>0}return h}
+const ERAS=[["Paleozoic",["Cambrian","Ordovician","Silurian","Devonian","Carboniferous","Permian"]],["Mesozoic",["Triassic","Jurassic","Cretaceous"]],["Cenozoic",["Paleogene","Neogene","Quaternary"]]];
+const PERIODS=ERAS.flatMap(e=>e[1]);
+const SCALE=[["Cenozoic","Quaternary","2.6-now"],["Cenozoic","Neogene","23-2.6"],["Cenozoic","Paleogene","66-23"],["Mesozoic","Cretaceous","146-66"],["Mesozoic","Jurassic","200-146"],["Mesozoic","Triassic","251-200"],["Paleozoic","Permian","299-251"],["Paleozoic","Carboniferous","359-299"],["Paleozoic","Devonian","416-359"],["Paleozoic","Silurian","444-416"],["Paleozoic","Ordovician","488-444"],["Paleozoic","Cambrian","542-488"]];
+const TYPES=[["Arthropods",["Arthropod"]],["Amphibians",["Amphibian"]],["Reptiles",["Reptile (not a dinosaur)"]],["Dinosaurs",["Ornithischian dinosaur","Sauropod dinosaur","Theropod dinosaur"]],["Mammals",["Early mammal","Monotreme","Marsupial","Placental"]]];
+const FTYPES=["Permineralization","Mold","Cast","Amber","Trace fossil"];
+const PCT=[100,50,25,12.5,6.25,3.125,1.5625,0.78125,0.390625,0.1953125,0.09765625];
+const DECOYS=["Arandaspis","Archaeothyris","Biarmosuchus","Cladoselache","Cooksonia","Dimetrodon","Eoraptor","Guiyu oneiros","Haikouichthys","Hallucigenia","Orthoceras","Prototaxites","Tiktaalik"];
+/* Organism guide by period: key characteristics from the Day 7-10 lessons, plus details that tell look-alikes apart.
+   * = organism not in the lesson slides. */
+const GUIDE={
+ Cambrian:[["Trilobite","Early arthropod; scavenger; flexible chitin exoskeleton; body in three lobes."],["Anomalocaris","Top predator; largest radiodont; tail fan; only a small head shield."],["Hurdia","Radiodont with a huge head shield that sticks far forward like a hood."],["Cambroraster","Radiodont with a wide, horseshoe-shaped head shield; rake-like appendages."],["Mosura","Small radiodont (about 4 cm), the \"sea moth\"; tail of many narrow gill segments."],["Hallucigenia","Small, worm-like (0.5-5.5 cm); 7-8 pairs of spines; tardigrade relative."],["Haikouichthys","Early vertebrate with fish-like features; filter feeder near the ocean floor."]],
+ Ordovician:[["Orthoceras","Apex predator; early cephalopod related to squids and octopuses; long cone-shaped shell."],["Arandaspis","One of the first true fish; no jaws, filtered food; thick protective armor."],["Trilobite","Early arthropod with a three-lobed body; still common in Ordovician seas."]],
+ Silurian:[["Guiyu oneiros","Earliest known bony fish; thick scales; jaws to grab and bite food; strong fins."],["Kampecaris","One of the earliest land arthropods; millipede relative (long body, many legs); ate decaying plants."],["Cooksonia","A plant: one of the first vascular plants, only a few millimetres tall."]],
+ Devonian:[["Cladoselache","Earliest well-known fossil shark; agile hunter of small fish and arthropods."],["Tiktaalik","Transition fossil; lobe-finned fish; used fins to move between ponds; air sacs for breathing."]],
+ Carboniferous:[["Pederpes","Early four-limbed animal, about 1 m; tied to water to breed and keep its skin moist."],["Meganeura","Largest flying insect; lived in swamp forests; preyed on other insects."],["Hylonomus","Earliest reptile (sauropsid); small, lizard-like; shelled eggs and thick skin for dry land."],["Archaeothyris","Earliest synapsid (mammal-like); one lower opening in the skull."]],
+ Permian:[["Dimetrodon","Early synapsid, precursor to mammals; sail on its back; hunted early amphibians."],["Biarmosuchus","Meat-eating therapsid; long saber-like canine teeth; hunted small four-limbed animals."]],
+ Triassic:[["Brasilodon","Possible earliest true mammal; about 20 cm long; hid in plants and crevices."],["Shonisaurus","Ichthyosaur: huge marine reptile (about 15 m), not a dinosaur."],["Eudimorphodon","Pterosaur: flying reptile, not a dinosaur."],["Eocursor","An early dinosaur: small, two-legged plant-eater, bird-hipped."]],
+ Jurassic:[["Archaeopteryx","One of the earliest birds (avian dinosaur); teeth and a long bony tail; ate insects."],["Brachiosaurus","Giant long-necked plant-eater; front legs LONGER than back legs."],["Brontosaurus","Giant long-necked plant-eater; front legs SHORTER than back legs; whip-like tail."],["Stegosaurus","Plant-eating dinosaur with plates on its back and spikes on its tail."],["Allosaurus","Large meat-eating dinosaur; bony crests above the eyes."],["Ichthyosaurus","Marine reptile (not a dinosaur) shaped like a dolphin; about 2 m long."]],
+ Cretaceous:[["Tyrannosaurus rex","Giant meat-eating dinosaur; strongest bite force, tiny arms; forests and floodplains."],["Velociraptor","Small meat-eating dinosaur (turkey-sized); feathers; sickle-shaped toe claw."],["Archaeornithura","Meat-eating avian dinosaur (early bird); short fused tail; ate fish or insects near lakes."],["Edmontosaurus","Plant-eating, bird-hipped dinosaur with a duck-like bill."],["Eomaia","Early placental relative from China; small and furry; long limbs for climbing."]],
+ Paleogene:[["Pakicetus","About 45 kg; shores of Pakistan and India; ate mostly fish; early whale relative."],["Purgatorius","About 37 g; lived in trees; ate insects and fruits; early primate relative."]],
+ Neogene:[["Leptobos","Earliest well-known bovine (cattle relative); grazed on open grasslands."],["Australopithecus","Early human ancestor from East Africa; small brain; ate fruits and seeds; \"Lucy\"."],["Obdurodon *","Toothed platypus of Australia; broad spoon-shaped bill; egg-laying relatives."]],
+ Quaternary:[["Woolly mammoth","Extinct elephant; plant-eater of the steppe tundra; related to Asian elephants."],["Homo habilis","\"Handy man\"; earliest Homo; East and South Africa; stone tools to butcher meat."],["Homo erectus","Early human with body proportions similar to modern humans."],["Homo neander\u00ADthalensis","Protruding face, large nasal cavity; thick, short limb bones for cold climates."],["Homo sapiens","Modern humans (300 ka to now); flat face and rounded skull, unlike Neanderthals."],["Diprotodon *","Giant Australian plant-eater; related to wombats and koalas (pouched mammals)."]]};
+const GNOTE={Cambrian:"Radiodonts: extinct arthropod group; segmented body, grasping front appendages, circular mouth."};
+/* tutorial specimen: a trilobite whose details differ from the trilobite case in the game */
+const TUTCASE={id:"T",name:["Trilobite","Isotelus","Isotelus rex"],period:"Ordovician",type:"Arthropod",ftype:"Mold",site:"Churchill River, Manitoba, Canada",mat:"Volcanic ash collected at the fossil level",size:"Limestone slab, 70 cm specimen",
+ pres:"A hollow imprint of the body in limestone. The original exoskeleton dissolved away and nothing filled the space.",
+ anat:["Body divided lengthwise into three lobes","Hard exoskeleton with jointed legs","Very large: about 70 cm long","Compound eyes","Found in rock formed in a warm, shallow sea"],hide:[3,4]};
+const FIRST=["Amara","Diego","Mei","Tomas","Leila","Kofi","Ana","Rafael","Noor","Ivan","Hana","Mateo","Sione","Priya","Elena","Jomo","Lucia","Arjun","Freya","Bayani","Aiko","Omar","Ines","Marco","Talia","Ruben","Yara","Nikolai","Liwayway","Chen"];
+const LAST=["Okafor","Reyes","Lindqvist","Tan","Haddad","Moreau","Castillo","Navarro","Sato","Mendoza","Novak","Abara","Santos","Kowalski","Mensah","Villanueva","Larsen","Ibrahim","Dela Rosa","Petrov","Kimura","Alvarez","Osei","Bautista","Fischer","Ramos","Hughes","Silva","Aquino","Park"];
+const STORE="mlk-office-v7",LASTKEY="mlk-last-v7",PHOTOS="mlk-photos-v1";
+let S=null,scale=1,sound=true,ac=null,timer=null,Z=100;
+const stage=$("#stage"),world=$("#world");
+
+/* ---------- inspection rules ----------
+   Rule / Ruleset pattern adapted from anakreon/PapersPlease (ISC licence):
+   each Rule pairs a validator with the message used when it fails. */
+class Rule{constructor(validate,message){this.validate=validate;this.message=message}test(c){return this.validate(c)}}
+class Ruleset{constructor(rules){this.rules=rules}failures(c){return this.rules.filter(r=>!r.test(c))}}
+const keyOf=c=>c.id==="T"?TUTCASE:CASES.find(x=>x.id===c.id);
+const norm=s=>String(s||"").toLowerCase().replace(/[^a-z]/g,"");
+function lev(a,b){const d=Array.from({length:a.length+1},(_,i)=>[i]);for(let j=1;j<=b.length;j++)d[0][j]=j;for(let i=1;i<=a.length;i++)for(let j=1;j<=b.length;j++)d[i][j]=Math.min(d[i-1][j]+1,d[i][j-1]+1,d[i-1][j-1]+(a[i-1]===b[j-1]?0:1));return d[a.length][b.length]}
+const nameOk=c=>{const t=norm(c.a.name);return t.length>2&&keyOf(c).name.some(n=>{const k=norm(n);return t===k||(k.length>=6&&lev(t,k)<=1)})};
+const FILING=new Ruleset([
+ new Rule(c=>String(c.a.age||"").trim()!=="","no age on the lab report"),
+ new Rule(c=>String(c.a.name||"").trim()!=="","no organism name"),
+ new Rule(c=>!!c.a.ftype,"no type of fossil"),
+ new Rule(c=>!!c.a.period,"no Period stamp"),
+ new Rule(c=>!!c.a.type,"no Organism type stamp")]);
+const GRADING=new Ruleset([
+ new Rule(c=>c.a.period===keyOf(c).period,"Period"),
+ new Rule(c=>c.a.ftype===keyOf(c).ftype,"Fossil type"),
+ new Rule(nameOk,"Organism"),
+ new Rule(c=>c.a.type===keyOf(c).type,"Organism type")]);
+const ageOk=c=>{const v=parseFloat(String(c.a.age).replace(/,/g,""));return Number.isFinite(v)&&Math.abs(v-c.r.age)<=Math.max(c.r.age*.005,.01)};
+
+/* ---------- stage scaling (locked while the on-screen keyboard is up) ---------- */
+let lastW=0;
+const typing=()=>{const a=document.activeElement;return!!a&&(a.tagName==="INPUT"||a.tagName==="TEXTAREA")};
+function fit(force){const w=innerWidth,h=innerHeight;if(!force&&typing()&&Math.abs(w-lastW)<2)return;lastW=w;scale=Math.min(w/W,h/H);
+ stage.style.transform=`translate(${Math.round((w-W*scale)/2)}px,${Math.round((h-H*scale)/2)}px) scale(${scale})`}
+addEventListener("resize",()=>fit(false));addEventListener("orientationchange",()=>setTimeout(()=>fit(true),300));
+document.addEventListener("focusout",()=>setTimeout(()=>{window.scrollTo(0,0);if(!typing())fit(true)},250));
+fit(true);
+const toStage=(cx,cy)=>{const r=stage.getBoundingClientRect();return[(cx-r.left)/scale,(cy-r.top)/scale]};
+const toClient=(x,y)=>{const r=stage.getBoundingClientRect();return[r.left+x*scale,r.top+y*scale]};
+const stageRect=el=>{const r=el.getBoundingClientRect(),[x,y]=toStage(r.left,r.top);return{x,y,w:r.width/scale,h:r.height/scale}};
+
+/* ---------- sound, storage, messages ---------- */
+function snd(t){if(!sound)return;try{ac=ac||new(window.AudioContext||window.webkitAudioContext)();const n=ac.currentTime,o=ac.createOscillator(),g=ac.createGain();o.connect(g);g.connect(ac.destination);
+ const P={thud:[90,35,.35,"square",.18],stamp:[150,40,.42,"square",.12],file:[300,110,.14,"square",.2],paper:[700,500,.035,"square",.05],page:[500,300,.05,"triangle",.1],key:[1100,1000,.035,"square",.03],talk:[260,240,.05,"square",.05],slide:[200,120,.12,"sawtooth",.25],done:[523,784,.12,"square",.4],buzz:[150,95,.2,"square",.28]}[t]||[440,440,.1,"square",.2];
+ o.type=P[3];o.frequency.setValueAtTime(P[0],n);o.frequency.exponentialRampToValueAtTime(P[1],n+P[4]);g.gain.setValueAtTime(P[2],n);g.gain.exponentialRampToValueAtTime(.001,n+P[4]+.05);o.start(n);o.stop(n+P[4]+.08)}catch(e){}}
+$("#speaker").onclick=()=>{sound=!sound;$("#spkTxt").textContent=sound?"SOUND ON":"SOUND OFF"};
+function save(){try{localStorage.setItem(STORE,JSON.stringify(S))}catch(e){}}
+function load(){try{return JSON.parse(localStorage.getItem(STORE)||"null")}catch(e){return null}}
+let toastT;function toast(m){const t=$("#toast");t.textContent=m;t.classList.remove("hide");clearTimeout(toastT);toastT=setTimeout(()=>t.classList.add("hide"),3600)}
+let bubT=[];
+function say(lines){if(S&&S.tut&&TUT)return tutWarn(lines.join(" "));bubT.forEach(clearTimeout);bubT=[];const box=$("#bubbles");box.innerHTML="";
+ lines.forEach((l,i)=>bubT.push(setTimeout(()=>{const b=document.createElement("div");b.className="bub";b.textContent=l;const left=i%2===0;b.style[left?"right":"left"]=(left?1280-520:760)+"px";const prev=[...box.children].filter(x=>x.dataset.side===(left?"L":"R")).pop();b.dataset.side=left?"L":"R";b.style.top=(prev?prev.offsetTop+prev.offsetHeight+10:30+(left?0:40))+"px";box.appendChild(b);snd("talk")},i*600)));
+ bubT.push(setTimeout(()=>box.innerHTML="",lines.length*600+6500))}
+
+/* ---------- pixel art ---------- */
+function grid(w,h){return Array.from({length:h},()=>Array(w).fill(null))}
+function paint(cv,g){const x=cv.getContext("2d");x.clearRect(0,0,cv.width,cv.height);for(let y=0;y<g.length;y++)for(let i=0;i<g[0].length;i++)if(g[y][i]){x.fillStyle=g[y][i];x.fillRect(i,y,1,1)}}
+function rect(g,x,y,w,h,c){for(let j=y;j<y+h;j++)for(let i=x;i<x+w;i++)if(g[j]&&i>=0&&i<g[0].length)g[j][i]=c}
+function outline(g,c){const h=g.length,w=g[0].length,o=g.map(r=>r.slice());for(let y=0;y<h;y++)for(let x=0;x<w;x++)if(!g[y][x]&&((g[y-1]&&g[y-1][x])||(g[y+1]&&g[y+1][x])||g[y][x-1]||g[y][x+1]))o[y][x]=c;return o}
+const SKIN=[["#f2cfae","#dcae8b"],["#e3b08a","#c78f69"],["#c98f63","#a9714a"],["#a06a43","#83532f"],["#73492b","#5a371f"],["#f5dcc4","#dfb99b"]];
+const HAIR=["#1e1a17","#3b2a1e","#5a3a22","#8a5a2b","#b98b4e","#7c7c78","#d2c8b0","#6b2e1f"];
+const CLOTH=["#6b6a4a","#4c5a3a","#3e4a5c","#7a5a3a","#5c3a3a","#8a8270","#4a4a4a","#5a6a6a"];
+function person(seed,official){const boss=official==="boss";if(boss)official=false;const r=rng(seed),P=a=>a[Math.floor(r()*a.length)],g=grid(40,48);
+ let sk=P(SKIN),hair=P(HAIR),cl=official?"#2e3a52":P(CLOTH),shirt=P(["#d8d0bc","#9fb0a0","#c9b28a","#b8b8b0"]),hatOn=!official&&r()<.3,glasses=r()<.25,beard=r()<.22,style=P(["short","long","bun","bald","curly","short"]);
+ if(boss){cl="#5a2e3e";shirt="#e8e0cc";hatOn=false;beard=false;glasses=true;style="bun";hair="#2b1d16"}
+ for(let y=36;y<48;y++){const hw=Math.min(18,8+(y-36));rect(g,20-hw,y,hw*2,1,cl)}
+ for(let y=36;y<42;y++)rect(g,20-(y-35),y,(y-35)*2,1,shirt);
+ rect(g,17,30,6,7,sk[1]);
+ if(style==="long")rect(g,10,10,20,26,hair);
+ for(let y=10;y<=31;y++){const hw=Math.round(8.5*Math.sqrt(Math.max(0,1-((y-20.5)/11)**2)));rect(g,20-hw,y,hw*2,1,sk[0]);rect(g,20-hw,y,1,1,sk[1])}
+ rect(g,11,19,1,4,sk[1]);rect(g,28,19,1,4,sk[1]);
+ if(style==="short"||style==="bun"){rect(g,12,8,16,4,hair);rect(g,11,10,2,7,hair);rect(g,27,10,2,7,hair)}
+ if(style==="long")rect(g,12,8,16,4,hair);
+ if(style==="bun")rect(g,16,4,8,4,hair);
+ if(style==="bald"){rect(g,11,15,2,5,hair);rect(g,27,15,2,5,hair)}
+ if(style==="curly"){for(let x=11;x<29;x++){const t=6+Math.floor(r()*3);rect(g,x,t,1,12-t+1,hair)}rect(g,10,10,2,8,hair);rect(g,28,10,2,8,hair)}
+ if(hatOn){rect(g,5,9,30,2,"#b8a77a");rect(g,11,3,18,6,"#c9b98a");rect(g,11,7,18,2,"#7a6a45")}
+ if(official){rect(g,10,6,20,5,"#2e3a52");rect(g,8,10,24,2,"#1f2738");rect(g,18,7,4,3,"#c9a441")}
+ rect(g,15,18,3,1,hair);rect(g,23,18,3,1,hair);rect(g,16,20,2,2,"#1d1915");rect(g,23,20,2,2,"#1d1915");
+ if(glasses){[[14,19,6,1],[14,22,6,1],[14,19,1,4],[19,19,1,4],[21,19,6,1],[21,22,6,1],[21,19,1,4],[26,19,1,4],[20,20,1,1]].forEach(a=>rect(g,...a,"#222"))}
+ rect(g,20,23,1,2,sk[1]);rect(g,19,25,2,1,sk[1]);
+ if(beard)for(let y=25;y<=31;y++){const hw=Math.round(8.5*Math.sqrt(Math.max(0,1-((y-20.5)/11)**2)));rect(g,20-hw,y,hw*2,1,hair)}
+ rect(g,18,27,5,1,beard?"#3a1f18":"#8a4436");
+ return outline(g,"#1b1714")}
+function silhouette(seed,official){const g=person(seed,official);return g.map((row,y)=>row.map((c,x)=>c?(row[x+1]===null&&y<40?"#2a2622":"#0f0d0b"):null))}
+function nameFor(seed){const r=rng(seed^0x5bd1);return"Dr. "+FIRST[Math.floor(r()*FIRST.length)]+" "+LAST[Math.floor(r()*LAST.length)]}
+
+function drawOffice(){const g=grid(320,63),r=rng(31);
+ rect(g,0,0,320,63,"#2a2724");for(let x=0;x<320;x+=20)rect(g,x,0,1,56,"#24221f");rect(g,0,8,320,1,"#33302c");
+ rect(g,14,10,64,30,"#1f2a33");for(let y=11;y<40;y+=3)rect(g,15,y,62,1,"#3d4a52");rect(g,14,10,64,1,"#47433d");rect(g,14,39,64,1,"#47433d");rect(g,45,10,1,30,"#47433d");
+ rect(g,92,6,24,12,"#3a3631");rect(g,93,7,22,10,"#4e483f");rect(g,96,9,16,1,"#2a2724");rect(g,96,12,12,1,"#2a2724");
+ rect(g,124,4,72,52,"#1d1b19");rect(g,124,4,72,1,"#3a3631");rect(g,124,4,1,52,"#3a3631");rect(g,195,4,1,52,"#3a3631");
+ rect(g,140,0,40,3,"#3a3631");rect(g,156,3,8,2,"#d9c98a");
+ for(let y=5;y<56;y++){const w=Math.min(30,((y-4)*0.6)|0);rect(g,160-w,y,w*2,1,"#211f1c")}
+ rect(g,210,14,8,8,"#d8cfb6");rect(g,213,15,1,4,"#1b1714");rect(g,213,18,3,1,"#1b1714");rect(g,209,13,10,1,"#3a3631");rect(g,209,22,10,1,"#3a3631");
+ [[232,18],[262,18],[292,18]].forEach(([x,y])=>{rect(g,x,y,26,38,"#3a3833");rect(g,x,y,26,1,"#4a4741");for(let j=y+4;j<y+38;j+=11){rect(g,x+2,j,22,9,"#45423c");rect(g,x+10,j+4,6,1,"#8a8478")}});
+ rect(g,0,56,320,7,"#1a1816");rect(g,0,56,320,1,"#33302c");
+ paint($("#office"),g)}
+function drawCounter(){const g=grid(320,20),r=rng(9);rect(g,0,0,320,20,"#8fb8a5");rect(g,0,0,320,2,"#a9d2bf");rect(g,0,5,320,1,"#6f9585");rect(g,0,8,320,7,"#617b6f");rect(g,0,8,320,1,"#4f675c");rect(g,0,15,320,1,"#4f675c");rect(g,0,18,320,2,"#3f5249");
+ rect(g,120,2,80,2,"#22302a");for(let i=0;i<120;i++){const y=Math.floor(r()*20),x=Math.floor(r()*320);if(g[y][x]==="#8fb8a5")g[y][x]="#98c1ae"}paint($("#counter"),g)}
+function drawShelf(){const g=grid(320,25);rect(g,0,0,320,25,"#57473a");rect(g,0,0,320,2,"#6e5b49");rect(g,0,2,320,1,"#3c3128");for(let y=9;y<25;y+=8)rect(g,0,y,320,1,"#4a3c31");[[2,4],[316,4],[2,21],[316,21]].forEach(([x,y])=>rect(g,x,y,2,2,"#2b231c"));paint($("#shelf"),g)}
+function drawSpeaker(){const g=grid(44,18);rect(g,0,0,44,18,"#7a6a55");rect(g,0,0,44,1,"#8d7c64");rect(g,0,17,44,1,"#4e4235");for(let y=3;y<15;y+=3)for(let x=3;x<41;x+=3)rect(g,x,y,2,2,"#2b241d");paint($("#spk"),outline(g,"#1b1714"))}
+function drawDesk(){const c=document.createElement("canvas");c.width=4;c.height=4;const x=c.getContext("2d");x.fillStyle="#6f9284";x.fillRect(0,0,4,4);x.fillStyle="#7a9d8f";x.fillRect(0,0,1,1);x.fillStyle="#678a7c";x.fillRect(2,2,1,1);$("#desk").style.backgroundImage=`url(${c.toDataURL()})`}
+function silReset(cv){cv.style.transition="none";cv.classList.remove("gone");cv.classList.add("out");void cv.offsetWidth;cv.style.transition=""}
+let silGen=0;
+function showSil(seed,official){const cv=$("#sil");silGen++;silReset(cv);paint(cv,silhouette(seed,official));requestAnimationFrame(()=>requestAnimationFrame(()=>cv.classList.remove("out")))}
+function hideSil(){const cv=$("#sil"),g=++silGen;cv.classList.add("gone");setTimeout(()=>{if(g===silGen)silReset(cv)},650)}
+
+/* ---------- drag engine ---------- */
+function raise(el){if(el.classList.contains("folder")&&el.classList.contains("open"))return;el.style.zIndex=++Z}
+function drag(el,o){el.addEventListener("pointerdown",e=>{
+ if(e.button>0||e.target.closest("input,.nodrag,.psel")||el.classList.contains("busy"))return;
+ raise(el);if(o.can&&!o.can(e))return;
+ e.preventDefault();e.stopPropagation();closeList();if(typing())document.activeElement.blur();
+ const[sx,sy]=toStage(e.clientX,e.clientY),ox=sx-el.offsetLeft,oy=sy-el.offsetTop;let moved=false;
+ el.setPointerCapture(e.pointerId);el.classList.remove("fly");
+ const b=o.bounds||(()=>[-20,DESK_Y-20,W-60,H-60]);
+ const mv=ev=>{const[x,y]=toStage(ev.clientX,ev.clientY);if(!moved&&Math.hypot(x-sx,y-sy)<6)return;
+  if(!moved){moved=true;el.classList.add("dragging");o.start&&o.start()}
+  const[x0,y0,x1,y1]=b();el.style.left=Math.round(clamp(x-ox,x0,x1))+"px";el.style.top=Math.round(clamp(y-oy,y0,y1))+"px";o.move&&o.move()};
+ const up=()=>{el.removeEventListener("pointermove",mv);el.removeEventListener("pointerup",up);el.removeEventListener("pointercancel",up);el.classList.remove("dragging");moved?o.drop&&o.drop():o.tap&&o.tap(e)};
+ el.addEventListener("pointermove",mv);el.addEventListener("pointerup",up);el.addEventListener("pointercancel",up)})}
+const place=(el,x,y)=>{el.style.left=x+"px";el.style.top=y+"px"};
+function flyTo(el,x,y){el.classList.add("fly");place(el,x,y);setTimeout(()=>el.classList.remove("fly"),330)}
+const center=el=>[el.offsetLeft+el.offsetWidth/2,el.offsetTop+el.offsetHeight/2];
+
+/* ---------- pixel dropdown ---------- */
+let listEl=null;
+function closeList(){if(listEl){listEl.remove();listEl=null}}
+function pixSelect(host,groups,value,onPick,opt={}){
+ host.innerHTML=`<button type="button" class="psel${value?"":" empty"}"><span>${esc(value||opt.placeholder||"Choose")}</span><i>▼</i></button>`;
+ const b=host.firstChild;b.addEventListener("pointerdown",e=>e.stopPropagation());
+ b.onclick=e=>{e.stopPropagation();openList(b,host,groups,value,v=>{pixSelect(host,groups,v,onPick,opt);onPick(v)},opt)}}
+function openList(anchor,host,groups,value,done,opt={}){if(listEl){const same=listEl.dataset.host===host.id;closeList();if(same)return}
+ const r=anchor.getBoundingClientRect(),[x,y]=toStage(r.left,r.top),w=Math.max(r.width/scale,opt.minW||0);
+ listEl=document.createElement("div");listEl.className="plist";listEl.dataset.host=host.id;listEl.style.width=w+"px";
+ listEl.innerHTML=groups.map(([g,items])=>(g?`<div class="grp">${esc(g)}</div>`:"")+items.map(it=>`<button type="button" class="${it===value?"on":""}" data-v="${esc(it)}">${esc(it)}</button>`).join("")).join("");
+ stage.appendChild(listEl);const lh=Math.min(listEl.scrollHeight+8,380);
+ let top=opt.up?y-lh-4:y+r.height/scale+4;if(top+lh>H-6)top=y-lh-4;if(top<6)top=6;
+ place(listEl,clamp(x,6,W-w-6),top);
+ listEl.querySelectorAll("button").forEach(btn=>btn.onclick=ev=>{ev.stopPropagation();const v=btn.dataset.v;closeList();done(v);snd("key")})}
+document.addEventListener("pointerdown",e=>{if(listEl&&!e.target.closest(".plist,.psel,.val"))closeList()},true);
+
+/* ---------- case generation ---------- */
+function makeReading(c){
+ if(c.win[0]==="c14"){const n=ri(c.win[1],c.win[2]);return{iso:"Carbon-14",n,hl:5730,unit:"years",age:n*5730,hlTxt:"5,730 years"}}
+ const[lo,hi,step]=c.win,su=Math.round(1/step);
+ for(let t=0;t<300;t++){const n=ri(2,10),kl=Math.ceil(lo*su/n-1e-9),kh=Math.floor(hi*su/n+1e-9);
+  if(kl<=kh){const k=ri(kl,kh),hl=k/su;return{iso:"Isotope T-"+ri(10,99),n,hl,unit:"million years",age:Math.round(n*k/su*10)/10,hlTxt:(+hl.toFixed(1)).toLocaleString("en-US")+" million years"}}}}
+const shuffle=a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
+/* grams for damaged (Extreme) lab reports: start amount = amount left x 2^n */
+function grams(n){const g1=pickA([1,2,3,4,5]);return{g0:g1*2**n,g1}}
+function makeCase(id){const c=keyOf({id}),seed=ri(1,2e9),r=makeReading(c);Object.assign(r,grams(r.n));
+ return{id,code:"MLK-"+ri(1000,9999),seed,who:nameFor(seed),r,ord:shuffle([0,1,2,3,4]),
+  date:new Date(2026,ri(0,10),ri(1,28)).toLocaleDateString("en-GB",{day:"2-digit",month:"short",year:"numeric"}),a:{}}}
+const BOSS_SEED=4242,BOSS="Director Ramos";
+function makeTutCase(){return{id:"T",code:"MLK-0001",seed:BOSS_SEED,who:"Dir. A. Ramos",r:{iso:"Isotope T-45",n:5,hl:90,unit:"million years",age:450,hlTxt:"90 million years",g0:160,g1:5},ord:[2,0,4,1,3],date:"12 Nov 2026",a:{}}}
+function buildShift(){const used=[],out=[];
+ for(let i=0;i<S.cfg.cases;i++){let id;
+  if(i>0&&Math.random()<CFG.DUPLICATE_CHANCE)id=pickA(used);else id=pickA(CASES.map(c=>c.id).filter(x=>!used.includes(x)));
+  used.push(id);out.push(makeCase(id))}
+ return out}
+const cur=()=>S.tut?S.tcase:S.cases[S.idx];
+const siteShort=c=>keyOf(c).site.split(",")[0];
+
+/* ---------- profile photos ---------- */
+const PRESETS=[11,23,37,41,58,64,77,85,93,102,117,128,141,156];
+function photos(){try{const a=JSON.parse(localStorage.getItem(PHOTOS)||"[]");return Array.isArray(a)?a.filter(u=>typeof u==="string"&&u.startsWith("data:image/")):[]}catch(e){return[]}}
+function savePhotos(a){try{localStorage.setItem(PHOTOS,JSON.stringify(a.slice(0,6)));return true}catch(e){return false}}
+const avCanvas=av=>`<canvas width="40" height="48" ${av&&av.u?`data-src="${esc(av.u)}"`:`data-seed="${av&&av.s||11}"`}></canvas>`;
+function paintAvs(root){root.querySelectorAll("canvas[data-seed],canvas[data-src]").forEach(c=>{
+ if(c.dataset.seed)return paint(c,person(+c.dataset.seed));const im=new Image();im.onload=()=>{const x=c.getContext("2d");x.clearRect(0,0,40,48);x.drawImage(im,0,0,40,48)};im.src=c.dataset.src})}
+/* an uploaded photo is cropped to 5:6 and shrunk to 40x48 pixels so it matches the pixel art */
+function readPhoto(file,done){if(!file||!/^image\//.test(file.type||"image/"))return done(null);const fr=new FileReader();
+ fr.onload=()=>{const im=new Image();im.onload=()=>{const c=document.createElement("canvas");c.width=40;c.height=48;const x=c.getContext("2d"),iw=im.naturalWidth,ih=im.naturalHeight;let sw=iw,sh=iw*1.2;if(sh>ih){sh=ih;sw=ih/1.2}
+  x.drawImage(im,(iw-sw)/2,(ih-sh)/2,sw,sh,0,0,40,48);try{done(c.toDataURL("image/png"))}catch(e){done(null)}};im.onerror=()=>done(null);im.src=fr.result};
+ fr.onerror=()=>done(null);fr.readAsDataURL(file)}
+function folderArt(){const g=grid(16,12);rect(g,1,2,6,2,"#c4a466");rect(g,1,3,14,8,"#a8874a");rect(g,1,5,14,6,"#d2bf74");rect(g,7,6,2,4,"#6a5a25");rect(g,6,7,4,2,"#6a5a25");return outline(g,"#1b1714")}
+function trilobiteArt(){const g=grid(72,48),b="#c9a96a",d="#8a6a3a",l="#e2c88e";
+ for(let y=3;y<=13;y++){const hw=Math.round(17*Math.sqrt(Math.max(0,1-((13-y)/11)**2)));rect(g,36-hw,y,hw*2,1,b)}
+ for(let i=0;i<10;i++){rect(g,19-Math.round(i/3),13+i,2,1,d);rect(g,51+Math.round(i/3),13+i,2,1,d)}
+ for(let y=14;y<=36;y++){const hw=Math.round(14-(y-14)*0.22);rect(g,36-hw,y,hw*2,1,(y-14)%3===2?d:b)}
+ for(let y=37;y<=45;y++){const hw=Math.round(9*Math.sqrt(Math.max(0,1-((y-37)/9)**2)));rect(g,36-hw,y,hw*2,1,b)}
+ for(let y=4;y<=44;y++)rect(g,33,y,6,1,y%3===2&&y>13?d:l);rect(g,26,7,3,3,"#1b1714");rect(g,43,7,3,3,"#1b1714");
+ return outline(g,"#1b1714")}
+
+/* ---------- title and menu ---------- */
+function loadLast(){try{return JSON.parse(localStorage.getItem(LASTKEY)||"null")}catch(e){return null}}
+function title(){closeList();clearInterval(timer);
+ $("#ovl").innerHTML=`<div class="scr"><div class="ttl"><canvas width="72" height="48" id="ttlcv"></canvas><div class="kick">SW 2.3 · SPECIMEN INTAKE</div><div class="big">MISSING LINK</div><div class="bar"></div>
+ <button class="btn" id="goSingle" type="button">SINGLE PLAYER</button><button class="btn alt" id="goCoop" type="button">MULTIPLAYER · CO-OP</button>
+ <div class="foot">Date it. Identify it. Stamp it. · Grade 9 POES Science</div></div></div>`;
+ paint($("#ttlcv"),trilobiteArt());$("#goSingle").onclick=()=>{snd("paper");menu(1)};$("#goCoop").onclick=()=>{snd("paper");menu(2)}}
+let M=null;
+function menu(np){closeList();const last=loadLast()||{};
+ M={np,p:[0,1].slice(0,np).map(i=>({av:{s:PRESETS[i*3]}})),sec:CFG.SECTIONS.includes(last.sec)?last.sec:"",diff:DIFFS[last.diff]?last.diff:"normal",cases:CFG.CASE_OPTIONS.includes(last.cases)?last.cases:CFG.DEFAULT_CASES,ink:0};
+ const rows=M.p.map((q,i)=>`<div class="prow">${np===2?`<div class="who2">INSPECTOR ${i+1}</div>`:""}<button type="button" class="avb" data-i="${i}" aria-label="Choose a photo for inspector ${i+1}">${avCanvas(q.av)}<span>CHANGE PHOTO</span></button>
+  <div><label for="s${i}">SURNAME</label><input class="inp" id="s${i}" autocomplete="off" autocapitalize="words" spellcheck="false" maxlength="30"></div>
+  <div><label for="f${i}">FIRST NAME</label><input class="inp" id="f${i}" autocomplete="off" autocapitalize="words" spellcheck="false" maxlength="30"></div></div>`).join("");
+ $("#ovl").innerHTML=`<div class="scr" style="display:block"><button class="btn backb" id="mBack" type="button">◁ BACK</button>
+ <form class="form" id="mform" novalidate><div class="in"><h1>${np===2?"CO-OP":"SINGLE PLAYER"}</h1><div class="fsub">Inspector application · Museum of Natural History</div>${rows}
+ <div class="cols"><div>
+  <div class="fld"><span class="lab">SECTION</span><div id="secHost"></div></div>
+  <div class="fld"><span class="lab">DIFFICULTY</span><div id="difHost"></div><div class="ddesc" id="ddesc"></div></div>
+  <div class="fld" style="display:flex;gap:18px;align-items:end;margin-bottom:0"><div style="width:140px;flex:none"><span class="lab">NO. OF CASES</span><div id="numHost"></div></div><label class="chk"><input type="checkbox" id="mTut" ${last.tut===false?"":"checked"}> Play the tutorial first</label></div>
+ </div><div><span class="lab">SIGN HERE</span><div class="sigbox" id="sigbox"><canvas id="sigcv" width="240" height="96"></canvas><span class="x">✕</span><span class="ln"></span></div>
+  <div class="sigbar"><span>${np===2?"Both partners sign":"Sign"} with a finger or mouse.</span><button class="sbtn" type="button" id="sigClr">CLEAR</button></div></div></div>
+ <div class="fend"><p class="err" id="er" role="alert"></p><button class="btn" type="submit" id="mStart">START SHIFT ▸</button></div></div></form></div>`;
+ paintAvs($("#mform"));
+ $$(".avb").forEach(b=>b.onclick=()=>openPicker(+b.dataset.i));
+ pixSelect($("#secHost"),[["",CFG.SECTIONS]],M.sec,v=>M.sec=v,{placeholder:"Choose section"});
+ const desc=()=>{const d=DIFFS[M.diff];$("#ddesc").innerHTML=`<b>${d.name.toUpperCase()} · ₱${d.pay} PER POINT</b>${esc(d.desc)}`};
+ pixSelect($("#difHost"),[["",DKEYS.map(k=>DIFFS[k].name)]],DIFFS[M.diff].name,v=>{M.diff=DKEYS.find(k=>DIFFS[k].name===v);desc()});desc();
+ pixSelect($("#numHost"),[["",CFG.CASE_OPTIONS.map(String)]],String(M.cases),v=>M.cases=+v);
+ sigPad();$("#mBack").onclick=()=>{snd("paper");title()};
+ $("#mform").onsubmit=e=>{e.preventDefault();const v=id=>$("#"+id).value.trim().replace(/\s+/g," "),er=m=>{$("#er").textContent=m;snd("buzz")};
+  for(let i=0;i<np;i++)if(!v("s"+i)||!v("f"+i))return er(np===1?"Type your surname and first name.":`Inspector ${i+1} needs a surname and a first name.`);
+  if(!M.sec)return er("Choose your section.");
+  if(M.ink<30)return er("Sign the form before you start.");
+  if(typing())document.activeElement.blur();
+  const tut=$("#mTut").checked;try{localStorage.setItem(LASTKEY,JSON.stringify({sec:M.sec,diff:M.diff,cases:M.cases,tut}))}catch(e){}
+  S={p:M.p.map((q,i)=>[v("s"+i),v("f"+i)]),av:M.p.map(q=>q.av),sec:M.sec,cfg:{diff:M.diff,cases:M.cases},sig:$("#sigcv").toDataURL("image/png"),attempt:0};
+  $("#ovl").innerHTML="";snd("stamp");setTimeout(()=>fit(true),300);if(tut)startTutorial();else newShift()}}
+/* signature pad: chunky pixel pen on a 240x96 canvas */
+function sigPad(){const box=$("#sigbox"),cv=$("#sigcv"),x=cv.getContext("2d");let last=null;x.fillStyle="#1f2f5c";
+ const pt=e=>{const r=cv.getBoundingClientRect();return[Math.floor((e.clientX-r.left)/r.width*cv.width),Math.floor((e.clientY-r.top)/r.height*cv.height)]};
+ const dot=(a,b)=>x.fillRect(a-1,b-1,2,2);
+ const line=(a,b)=>{let[x0,y0]=a;const[x1,y1]=b,dx=Math.abs(x1-x0),dy=-Math.abs(y1-y0),sx=x0<x1?1:-1,sy=y0<y1?1:-1;let er=dx+dy;
+  for(let k=0;k<2000;k++){dot(x0,y0);if(x0===x1&&y0===y1)break;const e2=2*er;if(e2>=dy){er+=dy;x0+=sx}if(e2<=dx){er+=dx;y0+=sy}}M.ink+=Math.hypot(b[0]-a[0],b[1]-a[1])};
+ box.addEventListener("pointerdown",e=>{e.preventDefault();closeList();if(typing())document.activeElement.blur();box.setPointerCapture(e.pointerId);last=pt(e);dot(...last)});
+ box.addEventListener("pointermove",e=>{if(!last)return;const p=pt(e);line(last,p);last=p});
+ const end=()=>last=null;box.addEventListener("pointerup",end);box.addEventListener("pointercancel",end);
+ $("#sigClr").onclick=()=>{x.clearRect(0,0,cv.width,cv.height);M.ink=0}}
+function openPicker(i){closeList();$("#pick")?.remove();const curAv=M.p[i].av,ph=photos(),box=document.createElement("div");box.className="pick";box.id="pick";
+ box.innerHTML=`<div class="pan"><h2>CHOOSE A PHOTO <button class="sbtn" type="button" id="pkX">CLOSE ✕</button></h2>
+ <h3>PRESETS</h3><div class="pgrid">${PRESETS.map(s=>`<button type="button" class="ptile${!curAv.u&&curAv.s===s?" on":""}" data-s="${s}" aria-label="Preset photo">${avCanvas({s})}</button>`).join("")}</div>
+ <h3>MY FOLDER · YOUR OWN PHOTOS, SAVED ON THIS DEVICE</h3><div class="pgrid"><button type="button" class="ptile add" id="pkAdd"><canvas width="16" height="12" id="fldcv"></canvas>ADD<br>PHOTO</button>
+ ${ph.map((u,k)=>`<div class="ptile${curAv.u===u?" on":""}" data-k="${k}" role="button" tabindex="0" aria-label="My photo ${k+1}">${avCanvas({u})}<button type="button" class="del" data-del="${k}" aria-label="Remove photo">×</button></div>`).join("")}</div>
+ <p class="err" id="pkErr"></p><input type="file" accept="image/*" id="pkFile" class="hide"></div>`;
+ $("#ovl .scr").appendChild(box);paintAvs(box);paint($("#fldcv"),folderArt());
+ const pickAv=av=>{M.p[i].av=av;const b=$(`.avb[data-i="${i}"]`);b.querySelector("canvas").outerHTML=avCanvas(av);paintAvs(b);box.remove();snd("paper")};
+ $("#pkX").onclick=()=>box.remove();box.onclick=e=>{if(e.target===box)box.remove()};
+ box.querySelectorAll(".ptile[data-s]").forEach(t=>t.onclick=()=>pickAv({s:+t.dataset.s}));
+ box.querySelectorAll(".ptile[data-k]").forEach(t=>t.onclick=e=>{if(e.target.closest(".del"))return;pickAv({u:ph[+t.dataset.k]})});
+ box.querySelectorAll(".del").forEach(d=>d.onclick=e=>{e.stopPropagation();const a=photos();a.splice(+d.dataset.del,1);savePhotos(a);openPicker(i)});
+ $("#pkAdd").onclick=()=>$("#pkFile").click();
+ $("#pkFile").onchange=e=>readPhoto(e.target.files[0],u=>{if(!u){$("#pkErr").textContent="That file could not be opened as a photo. Try a JPG or PNG.";return}
+  const a=photos().filter(x=>x!==u);a.unshift(u);if(!savePhotos(a))$("#pkErr").textContent="Could not save to My Folder, but the photo is used for this game.";pickAv({u})})}
+
+/* ---------- HUD ---------- */
+const names=()=>S.p.map(p=>p[0].toUpperCase()+", "+p[1]).join(" & ");
+function idCard(){const one=S.p.length===1;$("#idHead").textContent="INSPECTOR ID · "+S.sec;
+ $("#idNames").innerHTML=S.p.map((p,i)=>one?`<div class="pr big">${avCanvas(S.av[i])}<div style="min-width:0"><div class="nm">${esc(p[0].toUpperCase())},</div><div class="nm">${esc(p[1])}</div><div class="sc">${esc(DIFFS[S.cfg.diff].name)} mode</div></div></div>`
+  :`<div class="pr">${avCanvas(S.av[i])}<div class="nm">${esc(p[0].toUpperCase())}, ${esc(p[1])}</div></div>`).join("");paintAvs($("#idcard"))}
+function hud(){const end=S.phase==="env"||S.phase==="done";
+ $("#pCase").textContent=S.tut?"TRAIN":end?"END":"C#"+(S.idx+1);$("#pInfo").textContent=S.tut?"PRACTICE CASE":end?"SHIFT OVER":`CASE ${S.idx+1} OF ${S.cfg.cases}`;$("#pTime").textContent=(S.tut?"TIME ":"SHIFT ")+$("#pInfo").dataset.t}
+const fmt=s=>{s=Math.max(0,Math.floor(s));return String(Math.floor(s/60)).padStart(2,"0")+":"+String(s%60).padStart(2,"0")};
+function clock(){clearInterval(timer);const t=()=>{$("#pInfo").dataset.t=fmt(((S.secs&&S.phase!=="arrive"&&S.phase!=="desk")?S.secs*1000:(S.pausedAt||Date.now())-S.start)/1000);hud()};t();timer=setInterval(t,1000)}
+let GEN=0;const later=(fn,ms)=>{const g=GEN;return setTimeout(()=>{if(g===GEN)fn()},ms)};
+function clearDesk(){GEN++;closeList();toggleBar(false);resetStamps();$$(".folder,.paper,.env").forEach(x=>x.remove());F=null;P={};$("#bubbles").innerHTML="";bubT.forEach(clearTimeout)}
+function newShift(){clearDesk();S.tut=false;S.tcase=null;S.cases=buildShift();S.idx=0;S.start=Date.now();S.secs=0;S.attempt=(S.attempt||0)+1;S.result=null;
+ applyMode();idCard();save();clock();nextArrival()}
+
+/* ---------- arrivals and the folder ---------- */
+let F=null,P={};
+function nextArrival(){S.phase="arrive";save();hud();const c=cur();
+ later(()=>{showSil(c.seed);later(()=>{say(["Evening, inspector.",`A specimen from ${siteShort(c)}.`]);later(()=>spawnFolder(true),900)},650)},300)}
+function spawnFolder(slide){const c=cur();F=document.createElement("div");F.className="obj folder";F.id="fold";raise(F);
+ F.innerHTML=`<div class="ftab"></div><div class="fback"></div><div class="fcover"><div class="face front"><div class="casetag">${S.tut?"PRACTICE":"CASE #"+(S.idx+1)}</div>
+ <div class="flabel">SPECIMEN FILE<br>${c.code}<span id="fstat"></span></div></div>
+ <div class="face inside" id="fin"><p>File ${c.code}<br>Reported by ${esc(c.who)}</p><p style="margin-top:12px">Three papers inside. When finished, put all three back on the folder.</p><div class="closer">CLICK HERE TO<br>CLOSE THE FOLDER</div></div></div>`;
+ world.appendChild(F);$("#fin").addEventListener("click",tryClose);
+ drag(F,{can:()=>!F.classList.contains("open"),bounds:()=>[-20,120,W-80,H-120],tap:openFolder,
+  move:()=>$("#handZone").classList.toggle("hot",atCounter(F)),drop:()=>{$("#handZone").classList.remove("hot");if(atCounter(F))handBack();else if(F.offsetTop<DESK_Y)flyTo(F,F.offsetLeft,DESK_Y+6)}});
+ statusText();
+ if(slide){place(F,...FOLDER_FROM);F.style.opacity="0";F.classList.add("busy");snd("slide");
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{F.classList.add("slide");place(F,...FOLDER_HOME);F.style.opacity="1"}));
+  later(()=>{F.classList.remove("slide","busy");S.phase="desk";save()},850)}
+ else place(F,...FOLDER_HOME)}
+function statusText(){const s=$("#fstat");if(s)s.textContent=FILING.failures(cur()).length?"CLICK TO OPEN":"COMPLETE · HAND IT BACK"}
+function atCounter(el){const[,cy]=center(el);return cy<DESK_Y+120}
+function openFolder(){if(F.classList.contains("open"))return;const x=clamp(F.offsetLeft,410,W-410),y=clamp(F.offsetTop,DESK_Y+2,SHELF_Y-524);
+ if(x!==F.offsetLeft||y!==F.offsetTop)flyTo(F,x,y);F.classList.add("open");snd("paper");later(()=>spawnPapers(x,y),200)}
+const damaged=()=>mode()==="extreme"||mode()==="progamer";
+function spawnPapers(fx,fy){const c=cur(),C=keyOf(c),r=c.r,a=c.a,dm=damaged();
+ const mk=(id,html,dx,dy)=>{const p=document.createElement("div");p.className="obj paper";p.id=id;p.innerHTML=`<div class="in">${html}</div>`;place(p,fx+dx,fy+dy);raise(p);world.appendChild(p);drag(p,{start:()=>snd("paper")});return p};
+ P.lab=mk("lab",`<div class="hd"><b>LAB REPORT</b><span>${c.code}</span></div>
+  <dl><dt>Sample</dt><dd>${dm?'<span class="smudge">label torn off</span>':esc(C.mat)}</dd><dt>Isotope</dt><dd>${esc(dm?r.iso.replace(/\d+$/,"··"):r.iso)}</dd><dt>Half-life</dt><dd>${r.hlTxt}</dd></dl>
+  ${dm?`<h5>PARENT ISOTOPE (GRAMS)</h5><div class="gram"><span>START <b>${r.g0.toLocaleString("en-US")} g</b></span><span>LEFT <b>${r.g1} g</b></span></div>`:`<h5>PARENT ISOTOPE REMAINING</h5><div class="pct">${PCT[r.n]}%</div>`}
+  <div class="row"><label for="an">HALF-LIVES (N)</label><input id="an" inputmode="numeric" autocomplete="off" style="width:60px" value="${esc(a.n||"")}"></div>
+  <div class="row"><label for="aa">AGE</label><input id="aa" inputmode="decimal" autocomplete="off" style="width:110px" value="${esc(a.age||"")}"><span>${r.unit}</span></div>
+  <h5>PRESERVATION NOTES</h5><p>${esc(C.pres)}</p>`,8,8);
+ P.field=mk("field",`<div class="hd"><b>FIELD REPORT</b><span>${c.code}</span></div>
+  <div class="ptop"><div class="idphoto">${dm?'<div class="nophoto">PHOTO<br>MISSING</div>':'<canvas width="40" height="48" id="idcv"></canvas>'}</div>
+  <dl><dt>By</dt><dd>${esc(c.who)}</dd><dt>Site</dt><dd>${esc(C.site)}</dd><dt>Date</dt><dd>${dm?'<span class="smudge">smudged</span>':esc(c.date)}</dd><dt>Size</dt><dd>${dm?'<span class="smudge">not recorded</span>':esc(C.size)}</dd></dl></div>
+  <h5>ANATOMICAL OBSERVATIONS</h5><ul>${c.ord.map(i=>dm&&C.hide.includes(i)?'<li><span class="rd"></span> <i class="smudge">water damage</i></li>':"<li>"+esc(C.anat[i])+"</li>").join("")}</ul>`,12,6);
+ P.idf=mk("idf",`<div class="hd"><b>SPECIMEN ID FORM</b><span>${c.code}</span></div>
+  <div class="lbl">ORGANISM NAME</div><input id="anm" autocomplete="off" autocapitalize="words" spellcheck="false" placeholder="${mode()==="progamer"?"from memory":"see manual"}" style="width:100%;margin-bottom:8px" value="${esc(a.name||"")}">
+  <div class="lbl">TYPE OF FOSSIL</div><div id="ftHost"></div>
+  <div class="boxes"><div class="sbox" data-k="P" id="bxP"><em>PERIOD</em>${ink("P",a.period)}</div><div class="sbox" data-k="T" id="bxT"><em>ORGANISM TYPE</em>${ink("T",a.type)}</div></div>
+  <div style="height:16px"></div><div class="seal">MUSEUM OF NATURAL HISTORY</div>`,10,220);
+ if(!dm)paint($("#idcv"),person(c.seed,c.id==="T"?"boss":false));
+ [["an","n"],["aa","age"],["anm","name"]].forEach(([id,f])=>{const el=$("#"+id);el.oninput=()=>{a[f]=el.value;save()};
+  el.onchange=()=>{if(!tutCheck(f,el.value)){el.value="";a[f]="";save()}};el.onkeydown=e=>{if(e.key==="Enter")el.blur()}});
+ const ft=()=>pixSelect($("#ftHost"),[["",FTYPES]],a.ftype,v=>{a.ftype=v;if(!tutCheck("ftype",v)){a.ftype=null;ft()}save()},{placeholder:"Choose"});ft();
+ S.phase="desk";save()}
+const ink=(k,v)=>v?`<span class="ink ${k}" style="--r:${(k==="P"?-5:4)+ri(-2,2)}deg">${esc(v)}</span>`:"";
+function inFolder(p){const[cx,cy]=center(p);return cx>F.offsetLeft-30&&cx<F.offsetLeft+F.offsetWidth+30&&cy>F.offsetTop-30&&cy<F.offsetTop+F.offsetHeight+30}
+function tryClose(){if(!F||!F.classList.contains("open"))return;const all=Object.values(P),out=all.filter(p=>!inFolder(p));
+ if(out.length){const nm=out.map(p=>({lab:"lab report",field:"field report",idf:"ID form"})[p.id]);return toast(`Put the ${nm.length>1?nm.slice(0,-1).join(", ")+" and "+nm[nm.length-1]:nm[0]} back on the folder first.`)}
+ closeList();all.forEach(p=>p.remove());P={};F.classList.remove("open");snd("paper");statusText();save()}
+function handBack(){if(F.classList.contains("open"))return;const m=FILING.failures(cur());
+ if(m.length){say(["This file is not finished:",m.map(r=>r.message).join(", ")+"."]);return flyTo(F,...FOLDER_HOME)}
+ const f=F;f.classList.add("busy","slide");place(f,...FOLDER_FROM);f.style.opacity="0";snd("file");
+ if(S.tut){F=null;TUT.handed=true;return later(()=>f.remove(),850)}
+ say(["Thank you, inspector."]);S.idx++;save();
+ later(()=>{f.remove();F=null;hideSil();hud();if(S.idx>=S.cfg.cases)endShift();else later(nextArrival,600)},850)}
+
+/* ---------- stamp bar (Papers, Please style: align the form, press the stamp) ---------- */
+const stampVal={P:null,T:null};let barOpen=false;
+const MACH={P:{x:100,groups:()=>[["",PERIODS]],minW:200},T:{x:420,groups:()=>TYPES,minW:260}};
+function buildBar(){const bar=document.createElement("div");bar.id="bar";
+ bar.innerHTML=`<button id="bartab" type="button">STAMPS</button><div id="barbase"><canvas id="barcv" width="180" height="44" style="width:720px;height:176px"></canvas><div id="barlabel">ALIGN ID FORM BENEATH STAMP</div>
+ ${["P","T"].map(k=>`<div class="mach" data-k="${k}" id="mach${k}" style="left:${MACH[k].x}px"><canvas class="knob" width="14" height="16"></canvas><canvas class="body" width="40" height="23"></canvas><button class="hit" type="button" aria-label="Press the ${k==="P"?"Period":"Organism type"} stamp"></button><button class="val" type="button" id="val${k}"></button></div><div class="aim" style="left:${MACH[k].x+68}px"></div>`).join("")}</div>`;
+ world.appendChild(bar);paint($("#barcv"),barArt());
+ ["P","T"].forEach(k=>{const m=$("#mach"+k);paint(m.querySelector(".knob"),knobArt());paint(m.querySelector(".body"),machArt(k));setVal(k,stampVal[k]);
+  m.querySelector(".hit").onclick=()=>press(k);
+  const v=$("#val"+k);v.addEventListener("pointerdown",e=>e.stopPropagation());v.onclick=e=>{e.stopPropagation();openList(v,{id:"val"+k},MACH[k].groups(),stampVal[k],val=>{const prev=stampVal[k];setVal(k,val);if(!tutCheck("stamp"+k,val))setVal(k,prev)},{minW:MACH[k].minW})}});
+ $("#bartab").onclick=()=>toggleBar();layoutBar()}
+function setVal(k,v){stampVal[k]=v||null;$("#val"+k).innerHTML=`<span>${v?esc(v):(k==="P"?"SET PERIOD":"SET TYPE")}</span><i style="font-style:normal">▼</i>`}
+function resetStamps(){setVal("P",null);setVal("T",null)}
+function layoutBar(){$("#bar").style.left=(barOpen?BAR_OPEN:BAR_CLOSED)+"px";$("#bartab").setAttribute("aria-label",barOpen?"Close the stamp bar":"Open the stamp bar")}
+function toggleBar(force){closeList();const was=barOpen;barOpen=force===undefined?!barOpen:force;if(was!==barOpen)snd("slide");layoutBar()}
+function aimPoint(k){return[BAR_OPEN+34+MACH[k].x+80,334+176+22]}
+function press(k){if(!barOpen)return;if(!stampVal[k])return toast(`Set the ${k==="P"?"Period":"Organism type"} stamp first: tap ▼ on the stamp.`);const m=$("#mach"+k);m.classList.add("press");snd("stamp");setTimeout(()=>m.classList.remove("press"),180);
+ const[x,y]=toClient(...aimPoint(k)),top=document.elementsFromPoint(x,y).find(e=>!e.closest("#bar")),box=top&&top.closest(".sbox");
+ if(!box){const onPaper=top&&top.closest("#idf");return toast(onPaper?"Move the ID form so its stamp box sits under the yellow arrow.":"Slide the ID form under the stamp first (yellow arrow).")}
+ if(box.dataset.k!==k)return toast(`That box needs the ${box.dataset.k==="P"?"Period":"Organism type"} stamp.`);
+ const v=stampVal[k];cur().a[k==="P"?"period":"type"]=v;save();box.querySelector(".ink")?.remove();box.insertAdjacentHTML("beforeend",ink(k,v))}
+function barArt(){const g=grid(180,44);rect(g,0,0,180,44,"#5b5852");rect(g,0,0,180,2,"#6f6c65");rect(g,0,8,180,2,"#47443f");rect(g,0,34,180,2,"#47443f");rect(g,0,36,180,8,"#3e3b37");rect(g,0,42,180,2,"#2c2a27");
+ [[8,14],[66,14],[88,14],[146,14]].forEach(([x,y])=>{for(let i=0;i<8;i++)rect(g,x+i,y+i,1,8-i*2>0?1:1,"#3a3833");rect(g,x,y,10,2,"#6f6c65");rect(g,x,y+8,10,2,"#3a3833")});
+ [[2,4],[176,4],[2,38],[176,38]].forEach(([x,y])=>rect(g,x,y,2,2,"#2c2a27"));return outline(g,"#1b1714")}
+function knobArt(){const g=grid(14,16);rect(g,1,2,12,14,"#6e6e68");rect(g,1,2,2,14,"#5a5a55");rect(g,9,2,3,14,"#86867f");rect(g,2,0,10,3,"#9a9a92");rect(g,4,1,6,1,"#b2b2a9");return outline(g,"#1b1714")}
+function machArt(k){const c=k==="P"?["#b83a2e","#d65a4c","#7a2219","#4a120c"]:["#5f8f2a","#86b84a","#3d5e18","#22360b"],g=grid(40,23);
+ for(let y=0;y<23;y++){const ins=y<5?5-y:0;rect(g,ins,y,40-ins*2,1,c[0])}rect(g,5,0,30,2,c[1]);rect(g,0,19,40,4,c[2]);rect(g,5,14,30,8,c[3]);return outline(g,"#1b1714")}
+
+/* ---------- manual (lives on the shelf; pull it up to use it) ---------- */
+const ALLNAMES=[...new Set(CASES.map(c=>c.name[0]).concat(DECOYS))].sort((a,b)=>a.localeCompare(b));
+let gPeriod="";
+/* difficulty in force: the tutorial always uses Normal */
+const mode=()=>!S||S.tut||!S.cfg?"normal":S.cfg.diff;
+function spreads(){const m=mode(),table=m==="normal",n=S&&S.cfg?S.cfg.cases:CFG.DEFAULT_CASES;
+ return[
+ {tab:"HOW TO PLAY",col:"#d8c47e",L:`<h3>INSPECTOR'S MANUAL</h3><p>Each folder holds one fossil. Identify it, stamp it and hand it back. ${n} folders make a shift.</p><h4>SCORING</h4><p>4 points per folder: period, type of fossil, organism name and organism type.</p><h4>TOOLS</h4><p>Manual and calculator: drag them up from the shelf; drop them back when done.</p><h4>DIFFICULTY</h4><p>${esc(DIFFS[m].name)}</p>`,
+  R:`<h3>STEPS</h3><ol><li>Open the folder; drag out the 3 papers.</li><li>Lab report: ${table?"find n in the half-life table":"work out n with the calculator"}; write the age.</li><li>Find the period on the time scale.</li><li>ID form: type the organism name; choose the type of fossil.</li><li>Press STAMPS. Set each stamp (▼), slide the ID form under the arrow, press the stamp.</li><li>Papers back in the folder, close it, drag it up to the reporter.</li></ol>`},
+ {tab:table?"HALF-LIFE & TIME":"TIME SCALE",col:"#bcd29c",L:table?`<h3>HALF-LIFE TABLE</h3><table class="nw"><tr><th>HALF-LIVES (N)</th><th>% REMAINING</th></tr>${PCT.map((p,i)=>`<tr><td>${i}</td><td>${p}</td></tr>`).join("")}</table>`
+  :`<h3>HALF-LIFE TABLE</h3><p class="removed">NOT ISSUED · ${esc(DIFFS[m].name.toUpperCase())} MODE</p><p>Each half-life halves the parent isotope. Use the calculator: keep halving the starting amount until you reach the amount on the lab report. The number of halvings is n.</p><p>Age = n × half-life.</p>`,
+  R:`<h3>TIME SCALE</h3><table class="nw ts"><tr><th>PERIOD</th><th>MILLION YEARS AGO</th></tr>${SCALE.map((r,i)=>(i===0||SCALE[i-1][0]!==r[0]?`<tr class="era"><td colspan="2">${r[0].toUpperCase()} ERA</td></tr>`:"")+`<tr><td>${r[1]}</td><td>${r[2]}</td></tr>`).join("")}</table><p style="font-size:16px;margin-top:3px">Ma = million years ago</p>`},
+ {tab:"ORGANISM GUIDE",col:"#a3c3d2",wide:true},
+ {tab:"NAME LIST",col:"#d6b4a8",wide:true,Wd:`<h3>ORGANISM NAME LIST</h3><div class="names">${ALLNAMES.map(n=>`<div>${esc(n).replace("neanderthalensis","neander&shy;thalensis")}</div>`).join("")}</div><p class="gnote">Type the organism's name on the ID form exactly as listed.</p>`}]}
+let BK=null,bpage=0;
+function guideHtml(){const rows=gPeriod?GUIDE[gPeriod]:null,era=gPeriod?ERAS.find(e=>e[1].includes(gPeriod))[0]:"";
+ return`<h3>ORGANISM GUIDE</h3><div class="gsel"><span class="lbl">ERA · PERIOD</span><div id="gHost" style="width:260px"></div>${gPeriod?`<span class="lbl">${era.toUpperCase()} ERA</span>`:""}</div>
+ <div id="gtable" class="nodrag">${rows?`<table><tr><th>ORGANISM</th><th>KEY CHARACTERISTICS</th></tr>${rows.map(r=>`<tr><td>${esc(r[0])}</td><td>${esc(r[1])}</td></tr>`).join("")}</table>${GNOTE[gPeriod]?`<p class="gnote">${esc(GNOTE[gPeriod])}</p>`:""}${rows.some(r=>r[0].includes("*"))?'<p class="gnote">* Not in the class slides.</p>':""}`:`<p class="gnote">Choose a period with ▼ to see the organisms that lived then and their key features. Use it as a hint once you know the specimen's period.</p>`}</div>`}
+function bookBounds(){const w=BK.classList.contains("open")?600+100:300;return[-10,DESK_Y-10,W-w-10,BOOK_REST[1]+10]}
+function buildBook(){BK=document.createElement("div");BK.className="obj book closed";BK.id="book";place(BK,...BOOK_REST);raise(BK);
+ BK.innerHTML=`<div class="bcase"></div><div class="pg pgL" id="pgL"></div><div class="pg pgR" id="pgR"></div><div class="pg pgW hide" id="pgW"></div>
+ <div class="btabs">${spreads().map((s,i)=>`<button class="btab nodrag" type="button" data-i="${i}" style="background:${s.col}">${s.tab}</button>`).join("")}<button class="btab nodrag" type="button" id="bClose" style="background:#bdb09c">CLOSE</button></div>
+ <div class="cover"><span class="lab">MANUAL</span><canvas width="24" height="24" id="emb"></canvas><div class="bn">INSPECTOR'S<br>FIELD MANUAL</div></div>`;
+ world.appendChild(BK);renderPages();drawEmblem();
+ BK.querySelectorAll(".btab[data-i]").forEach(t=>t.onclick=()=>{bpage=+t.dataset.i;renderPages();snd("page")});$("#bClose").onclick=()=>closeBook();
+ drag(BK,{bounds:bookBounds,start:()=>snd("paper"),drop:()=>{if(BK.offsetTop>SHELF_Y-60)stowBook()},
+  tap:()=>{if(BK.classList.contains("open"))return;if(BK.offsetTop>SHELF_Y-60){raise(BK);flyTo(BK,...BOOK_UP);return}openBook()}})}
+function drawEmblem(){const g=grid(24,24),c="#f1d9cf";for(let a=0;a<14;a+=.05){const r=1+a*.75;rect(g,Math.round(12+r*Math.cos(a)),Math.round(12+r*Math.sin(a)),1,1,c)}paint($("#emb"),g)}
+function renderPages(){const all=spreads(),s=all[bpage];
+ $("#pgL").classList.toggle("hide",!!s.wide);$("#pgR").classList.toggle("hide",!!s.wide);$("#pgW").classList.toggle("hide",!s.wide);
+ if(s.wide){$("#pgW").innerHTML=(s.Wd||guideHtml())+`<span class="pno">${bpage*2+1}</span>`;
+  const gt=$("#gtable");if(gt)gt.classList.toggle("more",gt.scrollHeight>gt.clientHeight+1);
+  if(!s.Wd)pixSelect($("#gHost"),ERAS,gPeriod,v=>{gPeriod=v;renderPages();if(!tutCheck("guide",v)){gPeriod="";renderPages()}},{placeholder:"Choose period",minW:260})}
+ else{$("#pgL").innerHTML=s.L+`<span class="pno">${bpage*2+1}</span>`;$("#pgR").innerHTML=s.R+`<span class="pno">${bpage*2+2}</span>`}
+ BK.querySelectorAll(".btab[data-i]").forEach(t=>{t.classList.toggle("on",+t.dataset.i===bpage);t.textContent=all[+t.dataset.i].tab})}
+function openBook(){closeList();const nx=clamp(BK.offsetLeft-150,8,W-600-110);BK.classList.replace("closed","open");place(BK,nx,clamp(BK.offsetTop,DESK_Y+4,SHELF_Y-454));renderPages();snd("page")}
+function closeBook(){if(!BK.classList.contains("open"))return;closeList();BK.classList.replace("open","closed");place(BK,clamp(BK.offsetLeft+150,0,W-310),BK.offsetTop);snd("page")}
+function stowBook(){closeBook();flyTo(BK,...BOOK_REST)}
+/* apply the difficulty: Progamer takes the manual away */
+function applyMode(){const m=mode(),gone=m==="progamer";if(gone&&BK.classList.contains("open"))closeBook();
+ if(gone)place(BK,...BOOK_REST);BK.classList.toggle("hide",gone);$("#nomanual").classList.toggle("hide",!gone);bpage=0;gPeriod="";renderPages()}
+
+/* ---------- calculator (lives on the shelf) ---------- */
+let CL=null,cx="";
+function buildCalc(){CL=document.createElement("div");CL.className="obj calc";CL.id="calc";place(CL,...CALC_REST);raise(CL);
+ const K=["C","⌫","÷","×","7","8","9","−","4","5","6","+","1","2","3","=","0",".","(",")"];
+ CL.innerHTML=`<div class="cdisp" id="cdisp">0</div><div class="ckeys">${K.map(k=>`<button type="button" class="nodrag ${"÷×−+=".includes(k)?"op":k==="C"||k==="⌫"?"cl":""}">${k}</button>`).join("")}</div>`;
+ world.appendChild(CL);CL.querySelectorAll(".ckeys button").forEach(b=>b.onclick=()=>{raise(CL);key(b.textContent)});
+ drag(CL,{bounds:()=>[-10,DESK_Y-10,W-180,CALC_REST[1]+10],start:()=>snd("paper"),drop:()=>{if(CL.offsetTop>SHELF_Y-60)flyTo(CL,...CALC_REST)},tap:()=>{if(CL.offsetTop>SHELF_Y-60)flyTo(CL,...CALC_UP)}})}
+function key(k){const d=$("#cdisp");snd("key");
+ if(k==="C")cx="";else if(k==="⌫")cx=cx.slice(0,-1);
+ else if(k==="="){try{const e=cx.replace(/×/g,"*").replace(/÷/g,"/").replace(/−/g,"-");if(!/^[\d+\-*/().]+$/.test(e))throw 0;const v=Function('"use strict";return('+e+')')();cx=Number.isFinite(v)?String(+v.toPrecision(10)):"";d.textContent=cx||"ERROR";if(cx){lastCalc=+cx;tutCheck("calc",cx)}return}catch(e){cx="";d.textContent="ERROR";return}}
+ else if(cx.length<12)cx+=k;d.textContent=cx||"0"}
+addEventListener("keydown",e=>{if(e.key==="Escape"&&!listEl){if($("#ovl .pause"))return resume();if(!$("#ovl").children.length&&S){e.preventDefault();return pause()}}if(typing()||$("#ovl").children.length)return;const m={"*":"×","/":"÷","-":"−","Enter":"=","Backspace":"⌫","Delete":"C"};const k=m[e.key]||e.key;if(/^[\d.+()×÷−=⌫]$/.test(k)){e.preventDefault();key(k)}if(e.key==="Escape")closeList()});
+
+/* ---------- end of shift ---------- */
+function endShift(){S.phase="env";S.secs=Math.round((Date.now()-S.start)/1000);toggleBar(false);
+ S.result=S.cases.map(c=>{const fails=GRADING.failures(c).map(r=>r.message);return{code:c.code,age:c.a.age+" "+(c.r.unit==="years"?"yr":"Ma"),ag:ageOk(c),fails,points:GRADING.rules.length-fails.length}});
+ save();hud();
+ later(()=>{showSil(S.start%100000,true);later(()=>{say(["End of shift, inspector.","Your results and pay."]);later(()=>spawnEnv(true),900)},650)},300)}
+function envArt(part){const B="#b48c55",Dk="#9a7442",In="#7d5c33",Lt="#c9a46a",ln="#1b1714";
+ if(part==="back"){const g=grid(60,38);rect(g,0,0,60,38,In);rect(g,1,1,58,36,In);return outline(g.map((r,y)=>r.map((c,x)=>x===0||y===0||x===59||y===37?ln:c)),ln)}
+ if(part==="front"){const g=grid(60,38);for(let x=0;x<60;x++){const top=Math.round(22*(1-Math.abs(x-29.5)/29.5));for(let y=top;y<38;y++)g[y][x]=B;if(top<38)g[top][x]=ln}
+  for(let i=0;i<30;i++){const y=37-Math.round(i*15/30);if(g[y]&&g[y][i])g[y][i]=Dk;if(g[y]&&g[y][59-i])g[y][59-i]=Dk}
+  for(let y=0;y<38;y++){if(g[y][0])g[y][0]=ln;if(g[y][59])g[y][59]=ln}for(let x=0;x<60;x++)g[37][x]=ln;return g}
+ const g=grid(60,24);for(let y=0;y<24;y++){const a=Math.round(y*29.5/23.5);for(let x=a;x<60-a;x++)g[y][x]=y===0?ln:Lt;if(a<60-a){g[y][a]=ln;g[y][59-a]=ln}}return g}
+function spawnEnv(slide){const e=document.createElement("div");e.className="obj env";e.id="env";raise(e);
+ e.innerHTML=`<canvas class="eback" width="60" height="38"></canvas><div class="letter"><b>SHIFT REPORT</b><i></i><i style="width:80%"></i><i style="width:90%"></i><i style="width:55%"></i><i style="width:70%"></i></div><canvas class="efront" width="60" height="38"></canvas><canvas class="flap" width="60" height="24"></canvas><span class="wax">M</span><span class="et">SHIFT RESULTS<br>CLICK TO OPEN</span>`;world.appendChild(e);
+ paint(e.querySelector(".eback"),envArt("back"));paint(e.querySelector(".efront"),envArt("front"));paint(e.querySelector(".flap"),envArt("flap"));
+ if(slide){place(e,ENV_HOME[0],150);e.style.opacity="0";e.classList.add("busy");snd("slide");requestAnimationFrame(()=>requestAnimationFrame(()=>{e.classList.add("slide");place(e,...ENV_HOME);e.style.opacity="1"}));setTimeout(()=>e.classList.remove("slide","busy"),850)}else place(e,...ENV_HOME);
+ drag(e,{bounds:()=>[-20,DESK_Y+60,W-320,SHELF_Y-200],tap:()=>{if(e.classList.contains("open"))return results();e.classList.add("open","busy");snd("paper");S.phase="done";save();later(()=>{snd("done");results()},1500)}})}
+function results(){const R=S.result,per=GRADING.rules.length,tot=R.reduce((s,r)=>s+r.points,0),max=S.cfg.cases*per,d=DIFFS[S.cfg.diff],wage=tot*d.pay,bonus=tot===max?CFG.PERFECT_BONUS:0;
+ const vc=h32([names(),S.sec,tot,S.attempt,Math.floor(S.secs/60),S.cfg.diff,S.cfg.cases].join("|").toUpperCase(),11).toString(16).toUpperCase().padStart(8,"0"),mk=b=>b?'<span class="ok">✓</span>':'<span class="no">✗</span>';
+ $("#ovl").innerHTML=`<div class="scr"><div class="res">
+ <div class="who"><div class="ppl">${S.p.map((p,i)=>avCanvas(S.av[i])).join("")}<div><h1 style="text-align:left">SHIFT REPORT</h1><div>${esc(names())}</div><div class="meta" style="text-align:left;margin:0">${esc(S.sec)} · ${esc(d.name)} · ${S.cfg.cases} cases · Attempt ${S.attempt}</div></div></div>
+ <div class="sig"><img src="${esc(S.sig||"")}" alt="Signature">SIGNATURE</div></div>
+ <div class="meta">${new Date().toLocaleString("en-PH",{dateStyle:"medium",timeStyle:"short"})} · Shift time ${fmt(S.secs)}</div>
+ <table><thead><tr><th>CASE</th><th>FILE</th><th>AGE</th><th>PERIOD</th><th>FOSSIL TYPE</th><th>ORGANISM</th><th>ORG. TYPE</th><th>POINTS</th></tr></thead><tbody>
+ ${R.map((r,i)=>`<tr><td>${i+1}</td><td>${r.code}</td><td>${esc(r.age)} ${mk(r.ag)}</td>${GRADING.rules.map(g=>`<td>${mk(!r.fails.includes(g.message))}</td>`).join("")}<td>${r.points}/${per}</td></tr>`).join("")}</tbody></table>
+ <div class="score">SCORE ${tot} / ${max}</div>
+ <div class="ledger"><span>WAGE (${tot} × ₱${d.pay}, ${esc(d.name)})</span><span>₱${wage}</span><span>PERFECT SHIFT BONUS</span><span>₱${bonus}</span><span class="tot">PAYCHECK</span><span class="tot">₱${wage+bonus}</span></div>
+ <div class="vc">VERIFICATION <b>${vc.slice(0,4)}-${vc.slice(4)}</b><br>${tot===max?"Perfect shift. ":""}Take a screenshot of this page for your teacher.</div>
+ <div style="text-align:center;display:flex;gap:16px;justify-content:center"><button class="btn" id="again" type="button">TRY AGAIN · NEW SHIFT</button><button class="btn alt" id="toMenu" type="button">MAIN MENU</button></div></div></div>`;
+ paintAvs($("#ovl"));
+ $("#again").onclick=()=>{$("#ovl").innerHTML="";newShift()};
+ $("#toMenu").onclick=goMenu}
+
+/* ---------- tutorial: the director walks the inspector through one practice case ---------- */
+let TUT=null,lastCalc=null;
+const TA={n:"5",age:450,period:"Ordovician",type:"Arthropod",ftype:"Mold"};
+const q=s=>document.querySelector(s),bookOpen=()=>BK.classList.contains("open");
+function visibleAt(el){if(!el)return false;const r=el.getBoundingClientRect(),t=document.elementFromPoint(r.left+r.width/2,r.top+r.height/2);return!!t&&(t===el||el.contains(t))}
+const STEPS=[
+ {say:()=>`Welcome to the Museum's fossil desk, ${S.p.map(p=>p[1]).join(" and ")}! I'm ${BOSS}, your boss. Every night, field workers bring us fossils.`,next:"NEXT"},
+ {say:()=>"Your job: date each fossil, identify the organism, stamp the form and hand it back. Let's practise on one specimen. Here is the folder.",next:"NEXT"},
+ {say:()=>"Tap the folder to open it.",enter:()=>{if(!F)spawnFolder(true)},target:()=>F,done:()=>!!F&&F.classList.contains("open")&&!!q("#lab")},
+ {say:()=>"Three papers came out. Drag the purple FIELD REPORT and the pink ID FORM off the yellow LAB REPORT so you can read it.",target:()=>q("#field"),done:()=>visibleAt(q("#lab .pct"))},
+ {say:()=>"The LAB REPORT gives the isotope, its half-life (90 million years) and how much of the parent isotope is left: 3.125%.",target:()=>q("#lab .pct"),next:"NEXT"},
+ {say:()=>"Open the MANUAL on the shelf: tap it once to lift it, then tap it again to open it.",target:()=>BK,done:bookOpen},
+ {say:()=>"Tap the green HALF-LIFE & TIME tab.",target:()=>q('.btab[data-i="1"]'),done:()=>bookOpen()&&bpage===1},
+ {say:()=>"Find 3.125 in the % REMAINING column. The number beside it is n, the number of half-lives. Type n in the HALF-LIVES box.",target:()=>q("#an"),done:()=>String(cur().a.n||"").trim()===TA.n},
+ {id:"calc",say:()=>"Age = n × half-life. Tap the CALCULATOR on the shelf to lift it, then work out 5 × 90 and press =.",target:()=>CL,done:()=>lastCalc===450},
+ {say:()=>"Type that answer in the AGE box. Ages here are in millions of years.",target:()=>q("#aa"),done:()=>parseFloat(String(cur().a.age||"").replace(/,/g,""))===TA.age},
+ {say:()=>"Now the period. Look at the TIME SCALE on the right page: which period was 450 million years ago?",enter:()=>{if(bookOpen()&&bpage!==1){bpage=1;renderPages()}},target:()=>bookOpen()&&bpage===1?q("#pgR table"):BK,next:"I FOUND IT"},
+ {id:"guide",say:()=>"Open the ORGANISM GUIDE tab and choose that period with ▼. The table lists what lived then.",target:()=>!bookOpen()?BK:bpage===2?q("#gHost"):q('.btab[data-i="2"]'),done:()=>bookOpen()&&bpage===2&&gPeriod===TA.period},
+ {say:()=>"Compare the FIELD REPORT's observations with each row. Which organism matches? Type its name on the ID FORM.",target:()=>q("#anm"),done:()=>nameOk(cur())},
+ {say:()=>"TYPE OF FOSSIL: read the PRESERVATION NOTES on the lab report, then choose with ▼. Permineralization, mold, cast, amber or trace fossil?",target:()=>q("#ftHost"),done:()=>cur().a.ftype===TA.ftype},
+ {say:()=>"Time to stamp. Tap the STAMPS tab on the right.",target:()=>q("#bartab"),done:()=>barOpen},
+ {say:()=>"Tap ▼ on the red PERIOD stamp and choose the period.",target:()=>q("#valP"),done:()=>stampVal.P===TA.period},
+ {say:()=>"Slide the ID FORM so its PERIOD box sits under the left yellow arrow, then press the red stamp.",target:()=>q("#bxP"),done:()=>cur().a.period===TA.period},
+ {say:()=>"Now tap ▼ on the green stamp and choose the ORGANISM TYPE. Which group do trilobites belong to?",target:()=>q("#valT"),done:()=>stampVal.T===TA.type},
+ {say:()=>"Slide the ORGANISM TYPE box under the right yellow arrow and press the green stamp.",target:()=>q("#bxT"),done:()=>cur().a.type===TA.type},
+ {say:()=>"Double-check everything: age, name, type of fossil and both stamps. Once you hand a file back, you cannot change it.",enter:()=>toggleBar(false),target:()=>q("#idf"),next:"ALL CORRECT"},
+ {say:()=>"Put all three papers back on the folder, then tap the folder's inside cover to close it.",target:()=>F,done:()=>TUT.handed||(!!F&&!F.classList.contains("open"))},
+ {say:()=>"Last step: drag the closed folder up to the counter to hand it back to me.",target:()=>F?q("#handZone"):null,done:()=>TUT.handed},
+ {say:()=>`Excellent work! That's the whole job. Your real shift has ${S.cfg.cases} folders${S.cfg.diff!=="normal"?` on ${DIFFS[S.cfg.diff].name} difficulty`:""}. Good luck, inspector!`,next:"START SHIFT"}];
+function tutCheck(kind,v){if(!S||!S.tut||!TUT)return true;const s=String(v??"").trim();if(!s)return true;let bad=null;const st=STEPS[TUT.i];
+ if(kind==="n"&&s!==TA.n)bad="Not quite. Find 3.125 in the % REMAINING column: which n is beside it?";
+ else if(kind==="age"&&parseFloat(s.replace(/,/g,""))!==TA.age)bad="That's not the age. Multiply n by the half-life: 5 × 90.";
+ else if(kind==="name"&&!nameOk({id:"T",a:{name:s}}))bad="That organism doesn't match the observations. Compare them with the Ordovician rows again.";
+ else if(kind==="ftype"&&s!==TA.ftype)bad=`Not ${s.toLowerCase()}. Read the preservation notes again: a hollow imprint that nothing filled.`;
+ else if(kind==="stampP"&&s!==TA.period)bad=`Not the ${s}. 450 million years ago is in another period: check the time scale.`;
+ else if(kind==="stampT"&&s!==TA.type)bad=`Not ${s.toLowerCase()}. Read the Trilobite row in the guide again.`;
+ else if(kind==="guide"&&st.id==="guide"&&s!==TA.period)bad=`The ${s} doesn't include 450 million years ago. Check the time scale again.`;
+ else if(kind==="calc"&&st.id==="calc"&&+s!==450)bad="That's not 5 × 90. Press C and try again.";
+ if(!bad)return true;tutWarn(bad);snd("buzz");return kind==="calc"}
+let tutWT;function tutWarn(m){const w=$("#tutw");if(!w)return;w.textContent="✗ "+m;clearTimeout(tutWT);tutWT=setTimeout(()=>{if($("#tutw"))$("#tutw").textContent=""},7000)}
+function tutRender(){const s=STEPS[TUT.i];
+ $("#tut").innerHTML=`<div class="th"><canvas width="40" height="48" id="tutcv"></canvas>${esc(BOSS.toUpperCase())} · TRAINING<em>STEP ${TUT.i+1} / ${STEPS.length}</em></div><div class="tb">${esc(s.say())}<div class="tw" id="tutw"></div></div>${s.next?`<div class="tf"><button class="btn" type="button" id="tutNext">${esc(s.next)} ▸</button></div>`:""}`;
+ paint($("#tutcv"),person(BOSS_SEED,"boss"));if(s.next)$("#tutNext").onclick=()=>{snd("paper");tutAdvance()}}
+function tutAdvance(){if(!TUT)return;TUT.i++;if(TUT.i>=STEPS.length)return endTutorial();const s=STEPS[TUT.i];s.enter&&s.enter();tutRender();snd("page");tutTick()}
+function tutTick(){if(!TUT)return;const s=STEPS[TUT.i];if(s.done&&s.done())return tutAdvance();
+ const el=s.target&&s.target(),ring=$("#tutRing"),ar=$("#tutArrow");
+ if(!el||el.classList.contains("hide")||!el.isConnected){ring.classList.add("hide");ar.classList.add("hide");return}
+ const r=stageRect(el),up=r.y<110;ring.classList.remove("hide");ar.classList.remove("hide");
+ Object.assign(ring.style,{left:r.x-6+"px",top:r.y-6+"px",width:r.w+12+"px",height:r.h+12+"px"});
+ ar.classList.toggle("up",up);ar.style.left=Math.round(clamp(r.x+r.w/2-16,4,W-36))+"px";ar.style.top=Math.round(up?r.y+r.h+10:r.y-32)+"px"}
+function startTutorial(){if(TUT)clearInterval(TUT.tick);TUT=null;clearDesk();endTutUI();S.tut=true;S.tcase=makeTutCase();S.cases=null;S.idx=0;S.phase="arrive";S.start=Date.now();S.secs=0;S.result=null;
+ lastCalc=null;applyMode();idCard();save();clock();TUT={i:0,handed:false};
+ stage.insertAdjacentHTML("beforeend",`<div id="tut" role="dialog" aria-live="polite" aria-label="Tutorial"></div><button class="btn" id="tutSkip" type="button">SKIP TUTORIAL ▸▸</button><div id="tutRing" class="hide"></div><div id="tutArrow" class="hide"></div>`);
+ $("#tutSkip").onclick=()=>{snd("paper");endTutorial()};
+ later(()=>{if(TUT)showSil(BOSS_SEED,"boss")},300);tutRender();TUT.tick=setInterval(tutTick,200)}
+function endTutUI(){["#tut","#tutSkip","#tutRing","#tutArrow"].forEach(s=>$(s)?.remove())}
+function endTutorial(){if(!TUT)return;clearInterval(TUT.tick);TUT=null;endTutUI();clearDesk();
+ stowTools();
+ hideSil();S.tut=false;S.tcase=null;save();later(newShift,700)}
+
+
+/* ---------- pause menu: resume, restart, main menu ---------- */
+function stowTools(){if(bookOpen()||BK.offsetTop<SHELF_Y-60)stowBook();if(CL.offsetTop<SHELF_Y-60)flyTo(CL,...CALC_REST);cx="";lastCalc=null;$("#cdisp").textContent="0"}
+function pause(){if(!S||$("#ovl").children.length)return;closeList();if(typing())document.activeElement.blur();S.pausedAt=Date.now();save();snd("paper");
+ const where=S.tut?"Practice case":S.phase==="env"||S.phase==="done"?"Shift over":`Case ${S.idx+1} of ${S.cfg.cases}`;
+ $("#ovl").innerHTML=`<div class="scr pause"><div class="pmenu" role="dialog" aria-label="Game paused"><h1>PAUSED</h1><div class="psub">${where} · ${esc(DIFFS[mode()].name)} · Time ${$("#pInfo").dataset.t}</div><div id="pbody"></div></div></div>`;pmain()}
+function pmain(){$("#pbody").innerHTML=`<button class="btn" type="button" id="pRes">▸ RESUME</button><button class="btn alt" type="button" id="pRe">${S.tut?"RESTART TUTORIAL":"RESTART SHIFT"}</button><button class="btn red" type="button" id="pMenu">MAIN MENU</button>`;
+ $("#pRes").onclick=resume;$("#pRes").focus();
+ $("#pRe").onclick=()=>pask(S.tut?"Start the tutorial again from step 1?":"Start a new shift with new folders? Your answers in this shift will be lost.",S.tut?"YES, RESTART":"YES, NEW SHIFT",restart);
+ $("#pMenu").onclick=()=>pask("Go back to the title screen? This shift will be lost and you will fill in the form again.","YES, MAIN MENU",goMenu)}
+function pask(msg,yes,go){$("#pbody").innerHTML=`<p>${esc(msg)}</p><button class="btn red" type="button" id="pYes">${esc(yes)}</button><button class="btn" type="button" id="pNo">CANCEL</button>`;snd("key");
+ $("#pYes").onclick=go;$("#pNo").onclick=()=>{snd("key");pmain()}}
+function unpause(){if(S&&S.pausedAt){S.start+=Date.now()-S.pausedAt;delete S.pausedAt;save()}}
+function resume(){unpause();$("#ovl").innerHTML="";snd("paper")}
+function restart(){unpause();$("#ovl").innerHTML="";snd("paper");stowTools();hideSil();if(S.tut)startTutorial();else{if(TUT){clearInterval(TUT.tick);TUT=null;endTutUI()}newShift()}}
+function goMenu(){if(TUT){clearInterval(TUT.tick);TUT=null;endTutUI()}clearDesk();stowTools();hideSil();clearInterval(timer);S=null;try{localStorage.removeItem(STORE)}catch(e){}
+ applyMode();$("#idNames").innerHTML="";$("#idHead").textContent="INSPECTOR ID";$("#pCase").textContent="C#-";$("#pInfo").textContent="CASE -";snd("paper");title()}
+$("#pauseBtn").onclick=pause;
+
+/* ---------- boot ---------- */
+drawOffice();drawCounter();drawShelf();drawSpeaker();drawDesk();buildCalc();buildBook();buildBar();resetStamps();$("#pInfo").dataset.t="00:00";
+S=load();if(S&&(!S.p||!S.cfg||!S.av))S=null;
+if(S&&S.pausedAt)unpause();
+if(!S||(!S.cases&&!S.tut))title();
+else if(S.tut)startTutorial();
+else{applyMode();idCard();clock();
+ if(S.phase==="done"){showSil(S.start%100000,true);spawnEnv(false);$("#env").classList.add("open");results()}
+ else if(S.phase==="env"){showSil(S.start%100000,true);spawnEnv(false)}
+ else if(S.phase==="arrive")nextArrival();
+ else{showSil(cur().seed);spawnFolder(false);S.phase="desk";save()}}
+window.ML_DEBUG={state:()=>S,cases:CASES,makeCase,save,guide:GUIDE,tut:()=>TUT,steps:STEPS,tutcase:TUTCASE};
+}
+</script>
+</body>
+</html>
