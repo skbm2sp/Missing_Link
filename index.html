@@ -408,12 +408,16 @@ const DKEYS=Object.keys(DIFFS);
 
 /* Stage width follows the screen shape once at load: 1280 for 4:3 (iPads) up to 1707 for 16:9 (1080p laptops and TVs).
    Height stays 960, so on a 1920x1080 screen the game fills the whole display at 1.125x. */
-const W=Math.round(Math.min(1708,Math.max(1280,960*innerWidth/Math.max(1,innerHeight)))/4)*4,H=960,DESK_Y=330,SHELF_Y=860,GW=W/4,OFF=(W-1280)/2,RX=W-1280;
-(()=>{const s=document.documentElement.style;s.setProperty("--Wp",W+"px");s.setProperty("--off",OFF+"px");s.setProperty("--R",RX+"px");
- [["office",252],["counter",80],["shelf",100]].forEach(([id,h])=>{const c=document.getElementById(id);c.width=GW;c.style.width=W+"px"})})();
+/* 1280 for 4:3 (iPads) up to 2048 for very wide windows, so a maximized browser on a 1080p screen (shorter than 16:9 because of
+   the tab and address bars) is filled edge to edge too. It is worked out again whenever the window changes (resize, fullscreen). */
+const calcW=()=>Math.round(Math.min(2048,Math.max(1280,960*innerWidth/Math.max(1,innerHeight)))/4)*4;
+let W=calcW(),GW=W/4,OFF=(W-1280)/2,RX=W-1280;const H=960,DESK_Y=330,SHELF_Y=860;
+function setWide(){const s=document.documentElement.style;s.setProperty("--Wp",W+"px");s.setProperty("--off",OFF+"px");s.setProperty("--R",RX+"px");
+ [["office",252],["counter",80],["shelf",100]].forEach(([id,h])=>{const c=document.getElementById(id);c.width=GW;c.style.width=W+"px"})}
+setWide();
 const FOLDER_HOME=[W/2,336],FOLDER_FROM=[W/2,150],ENV_HOME=[490+OFF,420];
 const CALC_REST=[226,872],CALC_UP=[230,560],BOOK_REST=[736+OFF,872],BOOK_UP=[60,372];
-const BAR_OPEN=526+RX,BAR_CLOSED=1242+RX;
+let BAR_OPEN=526+RX,BAR_CLOSED=1242+RX;
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v)),ri=(a,b)=>a+Math.floor(Math.random()*(b-a+1)),pickA=a=>a[Math.floor(Math.random()*a.length)];
@@ -477,7 +481,16 @@ const ageOk=c=>{const v=parseFloat(String(c.a.age).replace(/,/g,""));return Numb
 /* ---------- stage scaling (locked while the on-screen keyboard is up) ---------- */
 let lastW=0;
 const typing=()=>{const a=document.activeElement;return!!a&&(a.tagName==="INPUT"||a.tagName==="TEXTAREA")};
-function fit(force){const w=innerWidth,h=innerHeight;if(!force&&typing()&&Math.abs(w-lastW)<2)return;lastW=w;scale=Math.min(w/W,h/H);
+/* re-fit the room to a new window shape: redraw the wide art, re-anchor the right-hand items, keep desk items on the desk */
+function relayout(){const nw=calcW();if(nw===W)return;const oldOff=OFF;W=nw;GW=W/4;OFF=(W-1280)/2;RX=W-1280;setWide();
+ FOLDER_HOME[0]=W/2;FOLDER_FROM[0]=W/2;ENV_HOME[0]=490+OFF;BOOK_REST[0]=736+OFF;BAR_OPEN=526+RX;BAR_CLOSED=1242+RX;
+ try{drawOffice();drawCounter();drawShelf();drawDesk()}catch(e){}
+ if(typeof layoutBar==="function"&&$("#bar"))layoutBar();
+ $$("#world .obj").forEach(el=>{if(el===BK&&!BK.classList.contains("open")&&el.offsetTop>SHELF_Y-60){place(el,...BOOK_REST);return}
+  if(typeof CL!=="undefined"&&el===CL){if(el.offsetTop>SHELF_Y-60)place(el,...CALC_REST);return}
+  if(el.id==="bar")return;const x=el.offsetLeft,nx=Math.max(-20,Math.min(W-Math.min(el.offsetWidth,W)+20,x+(OFF-oldOff)));if(nx!==x)place(el,nx,el.offsetTop)});
+ const mb=$("#mbg");if(mb){mb.width=W/2;drawMenuBg()}}
+function fit(force){const w=innerWidth,h=innerHeight;if(!force&&typing()&&Math.abs(w-lastW)<2)return;lastW=w;if(!typing())relayout();scale=Math.min(w/W,h/H);
  stage.style.transform=`translate(${Math.round((w-W*scale)/2)}px,${Math.round((h-H*scale)/2)}px) scale(${scale})`}
 addEventListener("resize",()=>fit(false));addEventListener("orientationchange",()=>setTimeout(()=>fit(true),300));
 document.addEventListener("focusout",()=>setTimeout(()=>{window.scrollTo(0,0);if(!typing())fit(true)},250));
@@ -809,10 +822,21 @@ function trilobiteArt(){const g=grid(72,48),b="#c9a96a",d="#8a6a3a",l="#e2c88e";
 
 /* class photos: photos/1.jpg, photos/2.png ... numbered in order (up to 40), next to index.html */
 let CLASS_PH=null,classWait=[];
-function probeClassPhotos(done){if(CLASS_PH)return done(CLASS_PH);classWait.push(done);if(classWait.length>1)return;const out=[],EXT=["jpg","png","jpeg","webp","JPG","PNG","JPEG"];let n=1;
- const fin=()=>{CLASS_PH=out;classWait.forEach(f=>f(out));classWait=[]};
- const tryN=()=>{if(n>40)return fin();let e=0;const nxt=()=>{if(e>=EXT.length)return fin();const src=`photos/${n}.${EXT[e]}`,im=new Image();im.onload=()=>{out.push(src);n++;tryN()};im.onerror=()=>{e++;nxt()};im.src=src};nxt()};
- try{tryN()}catch(e){fin()}}
+/* Class photos. Fast path: photos/list.json names the files, and they all download at the same time.
+   Without the list, numbered files (1.jpg, 2.png ...) are checked ten at a time in parallel, stopping at the first gap. */
+function probeClassPhotos(done){if(CLASS_PH)return done(CLASS_PH);classWait.push(done);if(classWait.length>1)return;
+ const fin=out=>{CLASS_PH=out;classWait.forEach(f=>f(out));classWait=[]};
+ const load=src=>new Promise(res=>{const im=new Image();im.onload=()=>res(src);im.onerror=()=>res(null);im.src=src});
+ const EXT=["jpg","png","jpeg","webp","JPG","PNG","JPEG"];
+ const one=n=>new Promise(res=>{let e=0;const nxt=()=>{if(e>=EXT.length)return res(null);load(`photos/${n}.${EXT[e++]}`).then(s=>s?res(s):nxt())};nxt()});
+ const byNumber=async()=>{const out=[];for(let a=1;a<=40;a+=10){const got=await Promise.all(Array.from({length:Math.min(10,41-a)},(_,k)=>one(a+k)));
+   for(const s of got){if(!s)return out;out.push(s)}}return out};
+ const okName=s=>typeof s==="string"&&/^[\w\- .()]+\.(jpe?g|png|webp|gif)$/i.test(s)&&!s.includes("..");
+ (async()=>{let out=null;
+  if(location.protocol!=="file:")try{const r=await fetch("photos/list.json",{cache:"no-cache"});if(r.ok){const j=await r.json(),names=(Array.isArray(j)?j:j&&j.photos||[]).filter(okName).slice(0,60);
+   if(names.length)out=(await Promise.all(names.map(n=>load("photos/"+n)))).filter(Boolean)}}catch(e){}
+  if(!out||!out.length){try{out=await byNumber()}catch(e){out=[]}}
+  fin(out)})()}
 /* ---------- application screen: a table covered in newspapers (640x480 pixels, drawn at 2x) ---------- */
 function ctext(ctx,t,x,y,font,col,align){const m=document.createElement("canvas").getContext("2d");m.font=font;const px=parseInt(font.match(/(\d+)px/)[1]),w=Math.ceil(m.measureText(t).width)+4,h=Math.ceil(px*1.5)+4;
  m.canvas.width=w;m.canvas.height=h;m.font=font;m.textBaseline="top";m.fillStyle=col;m.fillText(t,2,2);const im=m.getImageData(0,0,w,h),d=im.data;for(let i=3;i<d.length;i+=4)d[i]=d[i]>=110?255:0;m.putImageData(im,0,0);
@@ -855,6 +879,40 @@ function drawMenuBg(){const cv=$("#mbg");if(!cv)return;const x=cv.getContext("2d
  place(sheet(260,230,13,(s,r)=>{ctext(s,"LOCAL NEWS",130,8,NFONT(16,1),"#1e1a16","center");s.fillStyle="#1e1a16";s.fillRect(8,30,244,2);fakeText(s,10,38,240,36,r)}),600+SX,70,7);
  place(sheet(250,220,14,(s,r)=>{ctext(s,"LOST: ONE TRILOBITE",125,10,NFONT(8,1),"#1e1a16","center");fakeText(s,10,26,230,12,r);s.fillStyle="#1e1a16";s.fillRect(8,96,234,2);ctext(s,"FOR SALE",125,104,NFONT(16,1),"#1e1a16","center");fakeText(s,10,126,230,16,r)}),610+SX,420,-6);
  if(SX>=120)place(sheet(190,250,16,(s,r)=>{ctext(s,"CROSSWORD",95,8,NFONT(16,1),"#1e1a16","center");s.fillStyle="#1e1a16";s.fillRect(8,30,174,2);for(let i=0;i<8;i++)for(let j=0;j<8;j++){const bl=r()<.22;s.fillStyle=bl?"#1e1a16":"#3a342c";s.fillRect(23+i*18,40+j*18,bl?17:17,bl?17:1);if(!bl){s.fillRect(23+i*18,40+j*18,1,17)}}fakeText(s,10,196,170,8,r)}),236+SX/2,250,4);
+ /* wide screens: desk clutter in the gap between the circled page and the form (none on 4:3 iPads) */
+ {const L=245,R=228+SX,bw=R-L,bx=(L+R)/2;
+  const can=(w,h,f)=>{const c=document.createElement("canvas");c.width=w;c.height=h;const g=c.getContext("2d");g.imageSmoothingEnabled=false;f(g,w,h);return c};
+  const disc=(g,cx,cy,rr,col)=>{g.fillStyle=col;for(let y=Math.floor(cy-rr);y<=cy+rr;y++)for(let xx=Math.floor(cx-rr);xx<=cx+rr;xx++)if((xx-cx)**2+(y-cy)**2<=rr*rr)g.fillRect(xx,y,1,1)};
+  const ring=(g,cx,cy,r0,r1,col)=>{g.fillStyle=col;for(let y=Math.floor(cy-r1);y<=cy+r1;y++)for(let xx=Math.floor(cx-r1);xx<=cx+r1;xx++){const d=(xx-cx)**2+(y-cy)**2;if(d<=r1*r1&&d>=r0*r0)g.fillRect(xx,y,1,1)}};
+  const put=(c,cx,cy,deg,sh=5)=>{const s=can(c.width,c.height,g=>{g.drawImage(c,0,0);g.globalCompositeOperation="source-in";g.fillStyle="rgba(0,0,0,.45)";g.fillRect(0,0,c.width,c.height)});
+   x.save();x.translate(cx,cy);x.rotate(deg*Math.PI/180);x.drawImage(s,-c.width/2+sh|0,-c.height/2+sh|0);x.drawImage(c,-c.width/2|0,-c.height/2|0);x.restore()};
+  if(bw>=150){
+   /* sticky note */
+   put(can(92,74,(g,w,h)=>{g.fillStyle="#f2e27a";g.fillRect(0,0,w,h);g.fillStyle="#e3d062";g.fillRect(0,0,w,9);g.fillStyle="#d8c458";g.fillRect(w-10,h-3,10,3);g.fillRect(w-3,h-10,3,10);
+    [["Interview",14],["9:00 AM",32],["Bring a pen!",50]].forEach(([s2,y])=>ctext(g,s2,5,y,"italic 700 12px 'Comic Sans MS', 'Chalkboard SE', cursive","#2a4a8a"))}),R-54,62,7);
+   /* ammonite on a specimen card */
+   put(can(88,74,(g,w,h)=>{g.fillStyle="#ece6d6";g.fillRect(0,0,w,h);g.fillStyle="#b5ad98";g.fillRect(0,0,w,2);g.fillRect(0,h-2,w,2);g.fillRect(0,0,2,h);g.fillRect(w-2,0,2,h);
+    disc(g,32,32,23,"#8a7a5c");disc(g,32,32,21,"#b8a582");
+    g.fillStyle="#6e5f44";for(let a=0;a<900;a++){const th=a/900*Math.PI*6.2,rr=2.2+th*0.98;g.fillRect(Math.round(32+rr*Math.cos(th)),Math.round(32+rr*Math.sin(th)),1,1)}
+    g.fillStyle="#d6c7a2";for(let a=0;a<40;a++){const th=a/40*Math.PI*2,r1=12,r2=20;for(let k=r1;k<r2;k+=1)if((k+a)%3)g.fillRect(Math.round(32+k*Math.cos(th)),Math.round(32+k*Math.sin(th)),1,1)}
+    ctext(g,"NO.",60,22,NFONT(8,1),"#4a443a");ctext(g,"12",60,34,NFONT(16,1),"#7a2a20");ctext(g,"AMMONITE",6,58,NFONT(8,1),"#4a443a")}),bx-58,428,-6);
+   /* magnifying glass */
+   put(can(84,36,(g,w,h)=>{g.fillStyle="#6b4a30";g.fillRect(34,15,46,6);g.fillStyle="#8a6a44";g.fillRect(34,15,46,2);g.fillStyle="#3a3631";g.fillRect(30,14,6,8);g.fillRect(70,15,2,6);
+    disc(g,17,18,14,"rgba(190,220,228,.38)");ring(g,17,18,14,17,"#3a3631");ring(g,17,18,15,16,"#5a554d");g.fillStyle="rgba(255,255,255,.7)";for(let a=0;a<14;a++){const th=Math.PI*1.1+a/14*1.1;g.fillRect(Math.round(17+10*Math.cos(th)),Math.round(18+10*Math.sin(th)),2,2)}}),bx+52,410,28)}
+  if(bw>=200){
+   /* pencil */
+   put(can(96,8,(g)=>{g.fillStyle="#e8cfa0";g.beginPath();for(let k=0;k<8;k++)g.fillRect(9-k,k<4?4-k*.5|0:k-4+4-k+4|0,1,1);g.fillRect(3,2,8,4);g.fillStyle="#3a3631";g.fillRect(0,3,4,2);
+    g.fillStyle="#e0b04a";g.fillRect(10,1,72,6);g.fillStyle="#c9952e";g.fillRect(10,4,72,1);g.fillStyle="#b8b2a6";g.fillRect(82,1,5,6);g.fillStyle="#e8a0a0";g.fillRect(87,1,9,6);g.fillStyle="#3a3631";g.fillRect(16,2,10,1)}),bx-14,106,-9,3);
+   /* paperclips */
+   put(can(34,16,(g)=>{[[2,2],[16,6]].forEach(([ox,oy])=>{g.fillStyle="#9aa0a3";g.fillRect(ox,oy,14,1);g.fillRect(ox,oy+7,14,1);g.fillRect(ox,oy,1,8);g.fillRect(ox+13,oy+2,1,6);g.fillRect(ox+3,oy+2,10,1);g.fillRect(ox+3,oy+5,9,1);g.fillRect(ox+3,oy+2,1,4)})}),bx+8,468,12,2)}
+  /* ink pad and rubber stamp under the form */
+  if(SX>=60)put(can(120,56,(g)=>{g.fillStyle="#2b2622";g.fillRect(0,6,70,46);g.fillStyle="#3e3832";g.fillRect(2,8,66,42);g.fillStyle="#7a2a20";g.fillRect(6,12,58,34);g.fillStyle="#9a3a2e";g.fillRect(8,14,30,10);
+   disc(g,98,28,17,"#5a3e28");disc(g,98,28,15,"#7a5a3a");disc(g,98,28,9,"#8a6a44");g.fillStyle="rgba(255,255,255,.35)";g.fillRect(90,20,5,2);
+   g.fillStyle="#9a3a2e";g.fillRect(84,48,28,4)}),233+SX+100,440,-5);
+  if(bw>=260){
+   /* coffee mug, seen from above */
+   put(can(50,42,(g)=>{ring(g,40,21,5,9,"#d9d0b8");ring(g,40,21,8,9,"#8a8270");disc(g,19,21,18,"#8a8270");disc(g,19,21,17,"#e4dcc6");disc(g,19,21,13,"#5a3a22");disc(g,19,21,12,"#4a2e1a");ring(g,19,21,10,12,"#6a4426");
+    g.fillStyle="rgba(255,255,255,.55)";g.fillRect(12,14,4,2);g.fillRect(11,16,2,3)}),R-30,452,0,4)}}
  /* the "Manila Space" page with the circled advert (one of ADS, picked at random each visit) */
  const ad=M&&M.ad||ADS[0];let adBottom=300;
  const cls=sheet(250,320,15,(s,r)=>{s.fillStyle="#1e1a16";s.fillRect(8,8,234,24);ctext(s,"MANILA SPACE",125,11,NFONT(16,1),"#e8e1cc","center");
