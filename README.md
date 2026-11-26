@@ -36,6 +36,3 @@ Organism-type stamps: Arthropod, Amphibian, Reptile (not a dinosaur), Ornithisch
 
 ## Settings
 In `index.html`, the `CFG` line near the top of the second script sets the case-count choices, perfect-shift bonus, duplicate chance (0.0128 per case, about a 5% chance of a repeated organism in a 5-case shift) and the section list. Pay per point is in `DIFFS` on the next lines.
-
-## Credits
-Inspection logic follows the Rule / Ruleset pattern from anakreon/PapersPlease (https://github.com/anakreon/PapersPlease, ISC licence). Fonts: VT323 and Silkscreen (Google Fonts, SIL Open Font Licence). Layout inspired by Papers, Please (Lucas Pope); all art is original and generated in code, including the random reporter portraits.
